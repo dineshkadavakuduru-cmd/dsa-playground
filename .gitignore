@@ -1,0 +1,10 @@
+# Ignore Next.js build output and local environment files.
+.next/
+node_modules/
+.env*
+!.env.example
+playwright-report/
+test-results/
+
+.vercel
+.env*
