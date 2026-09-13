@@ -177,7 +177,7 @@ export function Playground({ kind }: PlaygroundProps) {
           </Link>
           <nav className="hidden items-center gap-1 md:flex" aria-label="Structures">
             {(Object.keys(STRUCTURES) as StructureKind[]).map((item) => (
-              <Link key={item} href={`/${item}`} className={`rounded-lab px-3 py-2 text-[12px] transition-all ${item === kind ? "bg-accent font-medium text-void" : "text-fog hover:bg-obsidian hover:text-bone"}`}>
+              <Link key={item} href={`/${item}`} data-testid={`nav-${item}`} className={`rounded-lab px-3 py-2 text-[12px] transition-all ${item === kind ? "bg-accent font-medium text-void" : "text-fog hover:bg-obsidian hover:text-bone"}`}>
                 {STRUCTURES[item].short}
               </Link>
             ))}
@@ -193,10 +193,10 @@ export function Playground({ kind }: PlaygroundProps) {
             <p className="mt-3 max-w-[58ch] text-[15px] leading-relaxed text-fog">{STRUCTURES[kind].description}</p>
           </div>
           <div className="playground-panel flex flex-wrap items-center gap-2 md:justify-end">
-            <button type="button" onClick={shareScenario} className="rounded-lab border border-graphite bg-obsidian px-3 py-2 font-mono text-[11px] text-mist transition-all hover:border-mist hover:text-bone active:translate-y-px">
+            <button type="button" onClick={shareScenario} data-testid="copy-scenario" className="rounded-lab border border-graphite bg-obsidian px-3 py-2 font-mono text-[11px] text-mist transition-all hover:border-mist hover:text-bone active:translate-y-px">
               {copied ? "LINK COPIED" : "COPY SCENARIO"}
             </button>
-            <button type="button" onClick={randomizeStructure} className="rounded-lab border border-graphite bg-obsidian px-3 py-2 font-mono text-[11px] text-mist transition-all hover:border-mist hover:text-bone active:translate-y-px">
+            <button type="button" onClick={randomizeStructure} data-testid="randomize-structure" className="rounded-lab border border-graphite bg-obsidian px-3 py-2 font-mono text-[11px] text-mist transition-all hover:border-mist hover:text-bone active:translate-y-px">
               RANDOMIZE
             </button>
           </div>
@@ -232,26 +232,26 @@ export function Playground({ kind }: PlaygroundProps) {
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <label className="col-span-2">
                   <span className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-ash">Operation</span>
-                  <select value={operation} onChange={(event) => { setOperation(event.target.value); setInput(DEFAULT_INPUTS[kind]); }} className="h-9 w-full rounded-lab border border-graphite bg-obsidian px-3 font-mono text-[12px] text-mist outline-none transition-colors focus:border-mist">
-                    {OPERATIONS[kind].map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                  </select>
+<select value={operation} onChange={(event) => { setOperation(event.target.value); setInput(DEFAULT_INPUTS[kind]); }} data-testid="operation-select" className="h-9 w-full rounded-lab border border-graphite bg-obsidian px-3 font-mono text-[12px] text-mist outline-none transition-colors focus:border-mist">
+                      {OPERATIONS[kind].map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                    </select>
                 </label>
                 <label className="col-span-2">
                   <span className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-ash">{operationDefinition.inputLabel}</span>
-                  <input value={input} onChange={(event) => setInput(event.target.value)} disabled={mode === "random"} placeholder={operationDefinition.placeholder} className="h-9 w-full rounded-lab border border-graphite bg-obsidian px-3 font-mono text-[12px] text-bone outline-none transition-colors placeholder:text-ash focus:border-mist disabled:cursor-not-allowed disabled:text-ash" />
+                  <input value={input} onChange={(event) => setInput(event.target.value)} disabled={mode === "random"} placeholder={operationDefinition.placeholder} data-testid="operation-input" className="h-9 w-full rounded-lab border border-graphite bg-obsidian px-3 font-mono text-[12px] text-bone outline-none transition-colors placeholder:text-ash focus:border-mist disabled:cursor-not-allowed disabled:text-ash" />
                 </label>
                 <div className="col-span-2 flex rounded-lab border border-graphite bg-obsidian p-1">
                   {([
                     ["manual", "MANUAL"],
                     ["random", "RANDOM"],
                   ] as const).map(([value, label]) => (
-                    <button key={value} type="button" onClick={() => setMode(value)} className={`flex-1 rounded-[4px] px-2 py-1.5 font-mono text-[10px] transition-all ${mode === value ? "bg-accent text-void" : "text-fog hover:text-bone"}`}>
+                    <button key={value} type="button" onClick={() => setMode(value)} data-testid={`mode-${value}`} className={`flex-1 rounded-[4px] px-2 py-1.5 font-mono text-[10px] transition-all ${mode === value ? "bg-accent text-void" : "text-fog hover:text-bone"}`}>
                       {label}
                     </button>
                   ))}
                 </div>
               </div>
-              <button type="button" onClick={runOperation} className="mt-4 flex h-10 w-full items-center justify-center rounded-lab bg-accent px-4 font-mono text-[11px] font-medium tracking-[0.08em] text-void transition-all hover:brightness-110 active:translate-y-px">
+              <button type="button" onClick={runOperation} data-testid="run-operation" className="mt-4 flex h-10 w-full items-center justify-center rounded-lab bg-accent px-4 font-mono text-[11px] font-medium tracking-[0.08em] text-void transition-all hover:brightness-110 active:translate-y-px">
                 RUN {operationDefinition.label.toUpperCase()}
               </button>
               <div className="mt-5 border-t border-graphite pt-4">
@@ -261,10 +261,10 @@ export function Playground({ kind }: PlaygroundProps) {
                 </div>
                 <input aria-label="Playback speed" type="range" min="0.5" max="2" step="0.1" value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="mt-3 h-1 w-full cursor-pointer accent-accent" />
                 <div className="mt-4 grid grid-cols-4 gap-2">
-                  <ControlButton label="⟲" onClick={stepBack} disabled={stepIndex === 0} />
-                  <ControlButton label={playing ? "Ⅱ" : "▶"} onClick={() => setPlaying((current) => !current)} />
-                  <ControlButton label="⟋" onClick={stepForward} disabled={stepIndex >= frames.length - 1} />
-                  <ControlButton label="↺" onClick={() => { setStepIndex(0); setPlaying(false); }} />
+                  <ControlButton label="⟲" onClick={stepBack} disabled={stepIndex === 0} data-testid="step-back" />
+                  <ControlButton label={playing ? "Ⅱ" : "▶"} onClick={() => setPlaying((current) => !current)} data-testid="play-pause" />
+                  <ControlButton label="⟋" onClick={stepForward} disabled={stepIndex >= frames.length - 1} data-testid="step-forward" />
+                  <ControlButton label="↺" onClick={() => { setStepIndex(0); setPlaying(false); }} data-testid="reset-playback" />
                 </div>
               </div>
             </section>
@@ -281,7 +281,7 @@ export function Playground({ kind }: PlaygroundProps) {
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 {frames.slice(0, stepIndex + 1).slice(-4).map((item, index) => (
-                  <button key={item.id} type="button" onClick={() => { setPlaying(false); setStepIndex(frames.indexOf(item)); }} className={`rounded-[4px] border px-2 py-1.5 font-mono text-[10px] transition-all ${index === stepIndex ? "border-accent bg-accent/10 text-accent" : "border-graphite text-fog hover:border-mist hover:text-bone"}`}>
+                  <button key={item.id} type="button" onClick={() => { setPlaying(false); setStepIndex(frames.indexOf(item)); }} data-testid={`step-${frames.indexOf(item) + 1}`} className={`rounded-[4px] border px-2 py-1.5 font-mono text-[10px] transition-all ${index === stepIndex ? "border-accent bg-accent/10 text-accent" : "border-graphite text-fog hover:border-mist hover:text-bone"}`}>
                     {String(frames.indexOf(item) + 1).padStart(2, "0")}
                   </button>
                 ))}
@@ -315,9 +315,9 @@ export function Playground({ kind }: PlaygroundProps) {
   );
 }
 
-function ControlButton({ label, onClick, disabled = false }: { label: string; onClick: () => void; disabled?: boolean }) {
+function ControlButton({ label, onClick, disabled = false, "data-testid": testId }: { label: string; onClick: () => void; disabled?: boolean; "data-testid"?: string }) {
   return (
-    <button type="button" onClick={onClick} disabled={disabled} className="h-9 rounded-lab border border-graphite bg-obsidian font-mono text-[13px] text-mist transition-all hover:border-mist hover:text-bone active:translate-y-px disabled:cursor-not-allowed disabled:opacity-35">
+    <button type="button" onClick={onClick} disabled={disabled} data-testid={testId} className="h-9 rounded-lab border border-graphite bg-obsidian font-mono text-[13px] text-mist transition-all hover:border-mist hover:text-bone active:translate-y-px disabled:cursor-not-allowed disabled:opacity-35">
       {label}
     </button>
   );
