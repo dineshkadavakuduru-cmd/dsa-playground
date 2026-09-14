@@ -108,6 +108,11 @@ export function Landing({ structures }: LandingProps) {
       <footer className="border-t border-graphite bg-void">
         <div className="mx-auto flex max-w-lab flex-wrap items-center justify-between gap-4 px-5 py-6 md:px-8">
           <span className="font-mono text-[10px] tracking-[0.16em] text-ash">DSA / PLAYGROUND</span>
+          <nav className="flex flex-wrap items-center gap-5" aria-label="Footer">
+            <Link href="/stack" className="font-mono text-[10px] tracking-[0.16em] text-fog transition-all hover:text-bone">OPEN THE LAB</Link>
+            <a href="#structures" className="font-mono text-[10px] tracking-[0.16em] text-fog transition-all hover:text-bone">LAB INDEX</a>
+            <a href="https://github.com/dineshkadavakuduru-cmd/dsa-playground" target="_blank" rel="noreferrer" className="font-mono text-[10px] tracking-[0.16em] text-fog transition-all hover:text-bone">GITHUB ↗</a>
+          </nav>
           <span className="font-mono text-[10px] text-ash">BUILT FOR CLEAR THINKING</span>
         </div>
       </footer>

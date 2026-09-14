@@ -110,6 +110,14 @@ button:disabled {
   letter-spacing: 0.12em;
 }
 
+/* Landing reveal: visible by default (no pre-JS hiding / no FOUC).
+   The anime.js entrance only applies inline opacity via JS after load;
+   with JS disabled the content stays fully visible. The <noscript>
+   override in layout.tsx reinforces this. */
+.landing-reveal {
+  opacity: 1;
+}
+
 .stage-loading {
   display: flex;
   height: 100%;
