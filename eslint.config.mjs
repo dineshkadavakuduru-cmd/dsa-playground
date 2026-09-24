@@ -19,6 +19,8 @@ const config = [
       "build/**",
       "public/**",
       "*.js",
+      "next-env.d.ts",
+      ".kilo/**",
     ],
   },
   ...compat.extends("next/core-web-vitals", "next/typescript"),

@@ -1,9 +1,11 @@
 "use client";
 
+import "../_lib/react-polyfill";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import anime from "animejs";
+import { CanvasErrorBoundary } from "./CanvasErrorBoundary";
 import {
   OPERATIONS,
   STRUCTURES,
@@ -14,6 +16,7 @@ import {
   type StepFrame,
   type StructureKind,
   type StructureModel,
+  type TreeNode,
 } from "../_lib/structures";
 
 const StageCanvas = dynamic(() => import("./StageCanvas").then((module) => module.StageCanvas), {
@@ -215,7 +218,9 @@ export function Playground({ kind }: PlaygroundProps) {
               </div>
             </div>
             <div className="relative h-[390px] overflow-hidden bg-void md:h-[520px]">
-              <StageCanvas frame={frame} kind={kind} />
+              <CanvasErrorBoundary>
+                <StageCanvas frame={frame} kind={kind} />
+              </CanvasErrorBoundary>
               <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-2 rounded-sm border border-graphite bg-void/80 px-2 py-1 font-mono text-[10px] text-fog">
                 <span className="text-accent">▣</span> CAMERA / ORBIT
               </div>
@@ -347,8 +352,85 @@ function readScenario(): Scenario | null {
   const encoded = new URLSearchParams(window.location.search).get("scenario");
   if (!encoded) return null;
   try {
-    return JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(encoded))))) as Scenario;
+    const parsed: unknown = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(encoded)))));
+    if (typeof parsed !== "object" || parsed === null) return null;
+    const candidate = parsed as Partial<Scenario>;
+    if (typeof candidate.kind !== "string" || !(candidate.kind in STRUCTURES)) return null;
+    const kind = candidate.kind as StructureKind;
+    const model = isStructureModel(kind, candidate.model)
+      ? normalizeScenarioModel(kind, candidate.model)
+      : createInitialModel(kind);
+    const operation = OPERATIONS[kind].some((item) => item.value === candidate.operation)
+      ? (candidate.operation as string)
+      : OPERATIONS[kind][0].value;
+    const input = typeof candidate.input === "string" ? candidate.input : DEFAULT_INPUTS[kind];
+    const history = Array.isArray(candidate.history)
+      ? candidate.history
+          .filter((item): item is { operation: string; input: string } =>
+            typeof item === "object" && item !== null &&
+            typeof (item as { operation?: unknown }).operation === "string" &&
+            typeof (item as { input?: unknown }).input === "string")
+          .slice(-12)
+      : [];
+    return { kind, model, operation, input, history };
   } catch {
     return null;
   }
+}
+
+function isStructureModel(kind: StructureKind, value: unknown): value is StructureModel {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as { values?: unknown; root?: unknown; nextId?: unknown; vertices?: unknown; edges?: unknown };
+  switch (kind) {
+    case "stack":
+    case "queue":
+    case "heap":
+      return Array.isArray(candidate.values) && candidate.values.every((item) => typeof item === "number" && Number.isFinite(item));
+    case "bst":
+    case "avl":
+      return Number.isSafeInteger(candidate.nextId) && (candidate.nextId as number) > 0 &&
+        (candidate.root === undefined || isTreeNode(candidate.root, 0));
+    case "graph":
+      return (
+        Array.isArray(candidate.vertices) && candidate.vertices.every((item) => Number.isSafeInteger(item)) &&
+        Array.isArray(candidate.edges) && candidate.edges.every((item) =>
+          typeof item === "object" && item !== null &&
+          Number.isSafeInteger((item as { from?: unknown }).from) &&
+          Number.isSafeInteger((item as { to?: unknown }).to) &&
+          Number.isSafeInteger((item as { weight?: unknown }).weight))
+      );
+  }
+}
+
+const MAX_SCENARIO_TREE_DEPTH = 32;
+
+function isTreeNode(value: unknown, depth: number): boolean {
+  if (typeof value !== "object" || value === null) return false;
+  if (depth > MAX_SCENARIO_TREE_DEPTH) return false;
+  const node = value as { id?: unknown; value?: unknown; left?: unknown; right?: unknown };
+  if (!Number.isSafeInteger(node.id) || !Number.isSafeInteger(node.value)) return false;
+  if (node.left !== undefined && !isTreeNode(node.left, depth + 1)) return false;
+  if (node.right !== undefined && !isTreeNode(node.right, depth + 1)) return false;
+  return true;
+}
+
+function normalizeScenarioModel(kind: StructureKind, model: StructureModel): StructureModel {
+  if (kind !== "bst" && kind !== "avl") return model;
+  const tree = model as { root?: { id: number; value: number; left?: unknown; right?: unknown; height?: number }; nextId: number };
+  let highestId = 0;
+  const rebuild = (node?: { id: number; value: number; left?: unknown; right?: unknown; height?: number }): TreeNode | undefined => {
+    if (!node) return undefined;
+    const left = rebuild(node.left as typeof node);
+    const right = rebuild(node.right as typeof node);
+    highestId = Math.max(highestId, node.id);
+    return {
+      id: node.id,
+      value: node.value,
+      left,
+      right,
+      height: 1 + Math.max(left?.height ?? 0, right?.height ?? 0),
+    };
+  };
+  const root = rebuild(tree.root);
+  return { root, nextId: Math.max(highestId + 1, tree.nextId) };
 }
