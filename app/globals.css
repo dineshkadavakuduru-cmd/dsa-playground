@@ -99,6 +99,29 @@ button:disabled {
   color: var(--color-acid);
 }
 
+.node-status {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.edge-label {
+  padding: 1px 5px;
+  border: 1px solid rgba(35, 37, 42, 0.9);
+  border-radius: 4px;
+  background: rgba(8, 9, 10, 0.86);
+  color: var(--color-fog);
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
+  font-size: 9px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.edge-label-active {
+  border-color: var(--color-acid);
+  color: var(--color-acid);
+}
+
 .axis-label {
   padding: 4px 7px;
   border: 1px solid var(--color-graphite);

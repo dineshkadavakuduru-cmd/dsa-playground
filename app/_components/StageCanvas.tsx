@@ -113,6 +113,11 @@ function SceneNode({ node }: { node: SceneNode }) {
         <div className={`node-label ${node.active ? "node-label-active" : ""}`}>
           <span>{node.label}</span>
           {node.detail && <small>{node.detail}</small>}
+          {(node.active || node.visited || node.path) && (
+            <small className="node-status">
+              {node.active ? "● active" : node.path ? "◆ on path" : "✓ visited"}
+            </small>
+          )}
         </div>
       </Html>
     </group>
@@ -123,17 +128,27 @@ function SceneEdge({ edge, positions }: { edge: SceneEdge; positions: PositionMa
   const start = positions[edge.from] ?? { x: 0, y: 0, z: 0 };
   const end = positions[edge.to] ?? { x: 0, y: 0, z: 0 };
   const color = edge.active ? EDGE_ACTIVE : edge.path ? EDGE_PATH : EDGE_REST;
+  const midpoint: [number, number, number] = [(start.x + end.x) / 2, (start.y + end.y) / 2 + 0.32, (start.z + end.z) / 2];
   return (
-    <Line
-      points={[
-        [start.x, start.y, start.z],
-        [end.x, end.y, end.z],
-      ]}
-      color={color}
-      lineWidth={edge.active || edge.path ? 3 : 1.2}
-      transparent
-      opacity={edge.active || edge.path ? 0.96 : 0.58}
-    />
+    <group>
+      <Line
+        points={[
+          [start.x, start.y, start.z],
+          [end.x, end.y, end.z],
+        ]}
+        color={color}
+        lineWidth={edge.active || edge.path ? 3 : 1.2}
+        transparent
+        opacity={edge.active || edge.path ? 0.96 : 0.58}
+      />
+      {edge.weight !== undefined && (
+        <Html position={midpoint} center distanceFactor={10} style={{ pointerEvents: "none" }}>
+          <div className={`edge-label ${edge.active || edge.path ? "edge-label-active" : ""}`}>
+            <span>w={edge.weight}</span>
+          </div>
+        </Html>
+      )}
+    </group>
   );
 }
 

@@ -36,14 +36,43 @@ type PlaygroundProps = {
   kind: StructureKind;
 };
 
-const DEFAULT_INPUTS: Record<string, string> = {
-  stack: "42",
-  queue: "42",
-  bst: "12",
-  avl: "12",
-  heap: "12",
-  graph: "0",
+const OPERATION_DEFAULTS: Record<string, string> = {
+  "stack:push": "42",
+  "queue:enqueue": "42",
+  "bst:insert": "12",
+  "bst:search": "12",
+  "bst:delete": "12",
+  "avl:insert": "12",
+  "avl:search": "12",
+  "avl:delete": "12",
+  "heap:insert": "12",
+  "heap:delete": "12",
+  "graph:add-vertex": "",
+  "graph:add-edge": "0 1 4",
+  "graph:remove-vertex": "0",
+  "graph:remove-edge": "0 1",
+  "graph:bfs": "0",
+  "graph:dfs": "0",
+  "graph:dijkstra": "0 5",
 };
+
+const NO_INPUT_OPERATIONS: ReadonlySet<string> = new Set([
+  "stack:pop",
+  "stack:peek",
+  "queue:dequeue",
+  "queue:peek",
+  "bst:traverse",
+  "avl:rotate-left",
+  "avl:rotate-right",
+  "heap:extract",
+  "heap:peek",
+  "heap:sift-up",
+  "heap:sift-down",
+]);
+
+function defaultInputFor(kind: StructureKind, operation: string): string {
+  return OPERATION_DEFAULTS[`${kind}:${operation}`] ?? "";
+}
 
 export function Playground({ kind }: PlaygroundProps) {
   const initialModel = useMemo(() => createInitialModel(kind), [kind]);
@@ -51,7 +80,7 @@ export function Playground({ kind }: PlaygroundProps) {
   const [frames, setFrames] = useState<StepFrame[]>(() => initialFrames(kind, initialModel));
   const [stepIndex, setStepIndex] = useState(0);
   const [operation, setOperation] = useState(() => OPERATIONS[kind][0].value);
-  const [input, setInput] = useState(() => DEFAULT_INPUTS[kind]);
+  const [input, setInput] = useState(() => defaultInputFor(kind, OPERATIONS[kind][0].value));
   const [mode, setMode] = useState<"manual" | "random">("manual");
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
@@ -69,7 +98,7 @@ export function Playground({ kind }: PlaygroundProps) {
       setFrames(initialFrames(kind, scenarioModel));
       setStepIndex(0);
       setOperation(scenarioOperation);
-      setInput(scenario?.kind === kind ? scenario.input : DEFAULT_INPUTS[kind]);
+      setInput(scenario?.kind === kind ? scenario.input : defaultInputFor(kind, scenarioOperation));
       setHistory(scenario?.kind === kind ? scenario.history ?? [] : []);
       setPlaying(false);
     });
@@ -121,6 +150,8 @@ export function Playground({ kind }: PlaygroundProps) {
   useEffect(() => () => {
     if (copyTimer.current) window.clearTimeout(copyTimer.current);
   }, []);
+
+  const inputRequired = !NO_INPUT_OPERATIONS.has(`${kind}:${operation}`);
 
   const runOperation = () => {
     const result = executeOperation(kind, model, operation, input, mode === "random");
@@ -226,6 +257,15 @@ export function Playground({ kind }: PlaygroundProps) {
               </div>
             </div>
             {kind === "heap" && frame.array && <ArrayStrip values={frame.array} activeIndices={frame.activeIndices ?? []} />}
+            <div className="border-t border-graphite bg-obsidian/60 px-5 py-3" aria-label="Stage legend">
+              <div className="flex flex-wrap gap-x-5 gap-y-1 font-mono text-[10px] text-fog">
+                <span><span className="text-accent">● active</span> — current node</span>
+                <span><span className="text-pulse">✓ visited</span> — already seen</span>
+                <span><span className="text-signal">◆ on path</span> — result path</span>
+                {kind === "graph" && <span><span className="text-mist">w=N</span> — edge weight</span>}
+                {(kind === "avl" || kind === "bst") && <span><span className="text-mist">bf N</span> — balance factor (AVL)</span>}
+              </div>
+            </div>
           </section>
 
           <aside className="flex flex-col gap-4">
@@ -235,16 +275,17 @@ export function Playground({ kind }: PlaygroundProps) {
                 <span className="font-mono text-[10px] text-ash">{operationDefinition.value}</span>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2">
-                <label className="col-span-2">
+                <label className="col-span-2" htmlFor="operation-select">
                   <span className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-ash">Operation</span>
-<select value={operation} onChange={(event) => { setOperation(event.target.value); setInput(DEFAULT_INPUTS[kind]); }} data-testid="operation-select" className="h-9 w-full rounded-lab border border-graphite bg-obsidian px-3 font-mono text-[12px] text-mist outline-none transition-colors focus:border-mist">
+<select id="operation-select" value={operation} onChange={(event) => { setOperation(event.target.value); setInput(defaultInputFor(kind, event.target.value)); }} data-testid="operation-select" className="h-9 w-full rounded-lab border border-graphite bg-obsidian px-3 font-mono text-[12px] text-mist outline-none transition-colors focus:border-mist">
                       {OPERATIONS[kind].map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                     </select>
                 </label>
-                <label className="col-span-2">
-                  <span className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-ash">{operationDefinition.inputLabel}</span>
-                  <input value={input} onChange={(event) => setInput(event.target.value)} disabled={mode === "random"} placeholder={operationDefinition.placeholder} data-testid="operation-input" className="h-9 w-full rounded-lab border border-graphite bg-obsidian px-3 font-mono text-[12px] text-bone outline-none transition-colors placeholder:text-ash focus:border-mist disabled:cursor-not-allowed disabled:text-ash" />
+                <label className="col-span-2" htmlFor="operation-input">
+                  <span className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-ash">{operationDefinition.inputLabel}{inputRequired ? "" : " (not needed)"}</span>
+                  <input id="operation-input" value={input} onChange={(event) => setInput(event.target.value)} disabled={mode === "random" || !inputRequired} placeholder={operationDefinition.placeholder} data-testid="operation-input" aria-describedby="operation-description" className="h-9 w-full rounded-lab border border-graphite bg-obsidian px-3 font-mono text-[12px] text-bone outline-none transition-colors placeholder:text-ash focus:border-mist disabled:cursor-not-allowed disabled:text-ash" />
                 </label>
+                <p id="operation-description" className="col-span-2 font-mono text-[10px] leading-relaxed text-ash">{operationDefinition.description}</p>
                 <div className="col-span-2 flex rounded-lab border border-graphite bg-obsidian p-1">
                   {([
                     ["manual", "MANUAL"],
@@ -266,10 +307,10 @@ export function Playground({ kind }: PlaygroundProps) {
                 </div>
                 <input aria-label="Playback speed" type="range" min="0.5" max="2" step="0.1" value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="mt-3 h-1 w-full cursor-pointer accent-accent" />
                 <div className="mt-4 grid grid-cols-4 gap-2">
-                  <ControlButton label="⟲" onClick={stepBack} disabled={stepIndex === 0} data-testid="step-back" />
-                  <ControlButton label={playing ? "Ⅱ" : "▶"} onClick={() => setPlaying((current) => !current)} data-testid="play-pause" />
-                  <ControlButton label="⟋" onClick={stepForward} disabled={stepIndex >= frames.length - 1} data-testid="step-forward" />
-                  <ControlButton label="↺" onClick={() => { setStepIndex(0); setPlaying(false); }} data-testid="reset-playback" />
+                  <ControlButton label="⟲" ariaLabel="Step back one frame" onClick={stepBack} disabled={stepIndex === 0} data-testid="step-back" />
+                  <ControlButton label={playing ? "Ⅱ" : "▶"} ariaLabel={playing ? "Pause playback" : "Play frames"} onClick={() => setPlaying((current) => !current)} data-testid="play-pause" />
+                  <ControlButton label="⟋" ariaLabel="Step forward one frame" onClick={stepForward} disabled={stepIndex >= frames.length - 1} data-testid="step-forward" />
+                  <ControlButton label="↺" ariaLabel="Restart playback from first frame" onClick={() => { setStepIndex(0); setPlaying(false); }} data-testid="reset-playback" />
                 </div>
               </div>
             </section>
@@ -279,7 +320,7 @@ export function Playground({ kind }: PlaygroundProps) {
                 <h2 className="text-[13px] font-medium tracking-[-0.01em] text-bone">Live narration</h2>
                 <span className="font-mono text-[10px] text-ash">SYNCED</span>
               </div>
-              <div className="current-narration mt-4 rounded-[4px] border-l-2 border-accent bg-obsidian/70 p-4">
+              <div className="current-narration mt-4 rounded-[4px] border-l-2 border-accent bg-obsidian/70 p-4" aria-live="polite" aria-atomic="true">
                 <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-accent">{frame.title}</div>
                 <p className="mt-2 text-[14px] leading-relaxed text-bone">{frame.narration}</p>
                 <code className="mt-3 block font-mono text-[11px] leading-relaxed text-fog">{frame.pseudocode}</code>
@@ -320,9 +361,9 @@ export function Playground({ kind }: PlaygroundProps) {
   );
 }
 
-function ControlButton({ label, onClick, disabled = false, "data-testid": testId }: { label: string; onClick: () => void; disabled?: boolean; "data-testid"?: string }) {
+function ControlButton({ label, ariaLabel, onClick, disabled = false, "data-testid": testId }: { label: string; ariaLabel: string; onClick: () => void; disabled?: boolean; "data-testid"?: string }) {
   return (
-    <button type="button" onClick={onClick} disabled={disabled} data-testid={testId} className="h-9 rounded-lab border border-graphite bg-obsidian font-mono text-[13px] text-mist transition-all hover:border-mist hover:text-bone active:translate-y-px disabled:cursor-not-allowed disabled:opacity-35">
+    <button type="button" onClick={onClick} disabled={disabled} aria-label={ariaLabel} title={ariaLabel} data-testid={testId} className="h-9 rounded-lab border border-graphite bg-obsidian font-mono text-[13px] text-mist transition-all hover:border-mist hover:text-bone active:translate-y-px disabled:cursor-not-allowed disabled:opacity-35">
       {label}
     </button>
   );
@@ -363,7 +404,7 @@ function readScenario(): Scenario | null {
     const operation = OPERATIONS[kind].some((item) => item.value === candidate.operation)
       ? (candidate.operation as string)
       : OPERATIONS[kind][0].value;
-    const input = typeof candidate.input === "string" ? candidate.input : DEFAULT_INPUTS[kind];
+    const input = typeof candidate.input === "string" ? candidate.input : defaultInputFor(kind, operation);
     const history = Array.isArray(candidate.history)
       ? candidate.history
           .filter((item): item is { operation: string; input: string } =>

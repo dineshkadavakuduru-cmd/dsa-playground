@@ -135,7 +135,7 @@ export const STRUCTURES: Record<
   heap: {
     label: 'Heap',
     short: 'Priority',
-    description: 'A complete tree represented by a compact array.',
+    description: 'A min-heap: a complete tree where every parent holds a value no larger than its children.',
     complexity: 'O(log n)',
   },
   graph: {
@@ -160,7 +160,14 @@ export const OPERATIONS: Record<StructureKind, OperationDefinition[]> = {
       label: 'Pop',
       description: 'Remove the most recently added value.',
       inputLabel: 'Value',
-      placeholder: 'unused',
+      placeholder: 'no input needed',
+    },
+    {
+      value: 'peek',
+      label: 'Peek',
+      description: 'Inspect the top value without removing it.',
+      inputLabel: 'Value',
+      placeholder: 'no input needed',
     },
   ],
   queue: [
@@ -176,7 +183,14 @@ export const OPERATIONS: Record<StructureKind, OperationDefinition[]> = {
       label: 'Dequeue',
       description: 'Remove the value at the front of the queue.',
       inputLabel: 'Value',
-      placeholder: 'unused',
+      placeholder: 'no input needed',
+    },
+    {
+      value: 'peek',
+      label: 'Peek',
+      description: 'Inspect the front value without removing it.',
+      inputLabel: 'Value',
+      placeholder: 'no input needed',
     },
   ],
   bst: [
@@ -201,12 +215,26 @@ export const OPERATIONS: Record<StructureKind, OperationDefinition[]> = {
       inputLabel: 'Value',
       placeholder: '12',
     },
+    {
+      value: 'traverse',
+      label: 'Traverse',
+      description: 'Walk the tree in-order; output must be sorted.',
+      inputLabel: 'Value',
+      placeholder: 'no input needed',
+    },
   ],
   avl: [
     {
       value: 'insert',
       label: 'Insert',
       description: 'Insert, measure balance, and rotate when needed.',
+      inputLabel: 'Value',
+      placeholder: '12',
+    },
+    {
+      value: 'search',
+      label: 'Search',
+      description: 'Follow comparisons; report balance along the path.',
       inputLabel: 'Value',
       placeholder: '12',
     },
@@ -222,44 +250,58 @@ export const OPERATIONS: Record<StructureKind, OperationDefinition[]> = {
       label: 'Rotate left',
       description: 'Pivot the root around its right child.',
       inputLabel: 'Value',
-      placeholder: 'optional',
+      placeholder: 'no input needed',
     },
     {
       value: 'rotate-right',
       label: 'Rotate right',
       description: 'Pivot the root around its left child.',
       inputLabel: 'Value',
-      placeholder: 'optional',
+      placeholder: 'no input needed',
     },
   ],
   heap: [
     {
       value: 'insert',
       label: 'Insert',
-      description: 'Append, then sift the value upward.',
+      description: 'Append, then sift the value upward (min-heap).',
       inputLabel: 'Value',
       placeholder: '12',
     },
     {
       value: 'extract',
-      label: 'Extract',
-      description: 'Remove the root, then sift downward.',
+      label: 'Extract min',
+      description: 'Remove the root minimum, then sift downward.',
       inputLabel: 'Value',
-      placeholder: 'unused',
+      placeholder: 'no input needed',
+    },
+    {
+      value: 'peek',
+      label: 'Peek min',
+      description: 'Inspect the root minimum without removing it.',
+      inputLabel: 'Value',
+      placeholder: 'no input needed',
+    },
+    {
+      value: 'delete',
+      label: 'Delete value',
+      description: 'Remove one occurrence of a value and repair.',
+      inputLabel: 'Value',
+      placeholder: '12',
     },
     {
       value: 'sift-up',
       label: 'Sift up',
       description: 'Repair the heap from the last array cell.',
       inputLabel: 'Value',
-      placeholder: 'unused',
+      placeholder: 'no input needed',
     },
     {
       value: 'sift-down',
       label: 'Sift down',
       description: 'Repair the heap from the root.',
       inputLabel: 'Value',
-      placeholder: 'unused',
+      placeholder: 'no input needed',
     },
   ],
   graph: [
@@ -276,6 +318,20 @@ export const OPERATIONS: Record<StructureKind, OperationDefinition[]> = {
       description: 'Connect two vertices with a weighted edge.',
       inputLabel: 'from to weight',
       placeholder: '0 1 4',
+    },
+    {
+      value: 'remove-vertex',
+      label: 'Remove vertex',
+      description: 'Delete a vertex and its incident edges.',
+      inputLabel: 'Vertex',
+      placeholder: '0',
+    },
+    {
+      value: 'remove-edge',
+      label: 'Remove edge',
+      description: 'Delete the edge between two vertices.',
+      inputLabel: 'from to',
+      placeholder: '0 1',
     },
     {
       value: 'bfs',
@@ -358,7 +414,7 @@ function heapify(values: number[]): number[] {
   return result;
 }
 
-function isMinHeap(values: number[]): boolean {
+export function isMinHeap(values: number[]): boolean {
   for (let index = 1; index < values.length; index += 1) {
     if (values[Math.floor((index - 1) / 2)] > values[index]) return false;
   }
@@ -496,6 +552,43 @@ export function initialFrames(kind: StructureKind, model: StructureModel): StepF
   }
 }
 
+export const MAX_INPUT_VALUE = 100000;
+
+export type ParsedInt = { ok: true; value: number } | { ok: false; reason: string };
+
+export function parseStrictInt(raw: string | undefined): ParsedInt {
+  if (raw === undefined || raw === null) return { ok: false, reason: 'No value was entered. Type an integer or pick RANDOM.' };
+  const trimmed = raw.trim();
+  if (!trimmed) return { ok: false, reason: 'The input is empty. Type an integer before running the operation.' };
+  if (!/^-?\d+$/.test(trimmed)) {
+    return { ok: false, reason: `"${trimmed}" is not an integer. Use digits only (optional leading "-").` };
+  }
+  const value = Number(trimmed);
+  if (!Number.isSafeInteger(value)) {
+    return { ok: false, reason: `"${trimmed}" is not a safe integer. Keep values within ±${MAX_INPUT_VALUE}.` };
+  }
+  if (Math.abs(value) > MAX_INPUT_VALUE) {
+    return { ok: false, reason: `${value} is too large. Keep values within ±${MAX_INPUT_VALUE} so the stage stays legible.` };
+  }
+  return { ok: true, value };
+}
+
+function randomValue(): number {
+  return Math.floor(Math.random() * 89) + 10;
+}
+
+function heldFrame(
+  id: string,
+  title: string,
+  narration: string,
+  pseudocode: string,
+  nodes: SceneNode[],
+  edges: SceneEdge[] = [],
+  extra: Partial<StepFrame> = {},
+): StepFrame {
+  return makeFrame(id, title, `${narration} The structure is unchanged.`, pseudocode, 'O(1)', nodes, edges, extra);
+}
+
 export function executeOperation(
   kind: StructureKind,
   model: StructureModel,
@@ -503,18 +596,17 @@ export function executeOperation(
   inputValue?: string,
   randomize = false,
 ): OperationResult {
-  const value = randomize ? Math.floor(Math.random() * 89) + 10 : Number(inputValue);
   switch (kind) {
     case 'stack':
-      return executeStack(model as StackModel, operation, Number.isFinite(value) ? value : 42);
+      return executeStack(model as StackModel, operation, inputValue, randomize);
     case 'queue':
-      return executeQueue(model as QueueModel, operation, Number.isFinite(value) ? value : 42);
+      return executeQueue(model as QueueModel, operation, inputValue, randomize);
     case 'bst':
-      return executeBst(model as TreeModel, operation, Number.isFinite(value) ? value : 12);
+      return executeBst(model as TreeModel, operation, inputValue, randomize);
     case 'avl':
-      return executeAvl(model as TreeModel, operation, Number.isFinite(value) ? value : 12);
+      return executeAvl(model as TreeModel, operation, inputValue, randomize);
     case 'heap':
-      return executeHeap(model as HeapModel, operation, Number.isFinite(value) ? value : 12);
+      return executeHeap(model as HeapModel, operation, inputValue, randomize);
     case 'graph':
       return executeGraph(model as GraphModel, operation, inputValue ?? '0 1 4');
   }
@@ -638,6 +730,8 @@ function graphAdjacency(graph: GraphModel): Map<number, Array<{ to: number; edge
     adjacency.get(edge.from)?.push({ to: edge.to, edge });
     adjacency.get(edge.to)?.push({ to: edge.from, edge });
   });
+  // Sort neighbors for deterministic traversal order across runs.
+  adjacency.forEach((list) => list.sort((a, b) => a.to - b.to));
   return adjacency;
 }
 
@@ -658,7 +752,7 @@ function graphScene(
     return {
       id: `vertex-${id}`,
       label: String(id),
-      detail: options.distances?.[id] !== undefined ? `d=${options.distances[id]}` : undefined,
+      detail: options.distances?.[id] !== undefined ? (options.distances[id] === Number.POSITIVE_INFINITY ? 'd=∞' : `d=${options.distances[id]}`) : undefined,
       position: { x: Math.cos(angle) * radius, y: 0, z: Math.sin(angle) * radius },
       shape: 'sphere' as const,
       active: id === options.activeId,
@@ -677,160 +771,275 @@ function graphScene(
   return [nodes, edges];
 }
 
-function executeStack(model: StackModel, operation: string, value: number): OperationResult {
+function executeStack(model: StackModel, operation: string, rawInput?: string, randomize = false): OperationResult {
+  if (operation === 'peek') {
+    if (!model.values.length) {
+      return { model, frames: [heldFrame('stack-peek-empty', 'Peek / empty', 'The stack is empty, so there is no top value to inspect.', 'if top = -1: return null', stackNodes([]))] };
+    }
+    const top = model.values[model.values.length - 1];
+    return {
+      model,
+      frames: [
+        makeFrame('stack-peek', 'Peek / inspect', `${top} is the top value. Peek only reads it; nothing is added or removed.`, 'value <- stack[top]', 'O(1)', stackNodes(model.values, model.values.length - 1)),
+      ],
+    };
+  }
   if (operation === 'push') {
-    const values = [...model.values, value];
+    const parsed: ParsedInt = randomize ? { ok: true, value: randomValue() } : parseStrictInt(rawInput);
+    if (!parsed.ok) {
+      return { model, frames: [heldFrame('stack-push-invalid', 'Push / held', `Invalid input. ${parsed.reason}`, 'require integer in ±100000', stackNodes(model.values))] };
+    }
+    const numeric = parsed.value;
+    const values = [...model.values, numeric];
     return {
       model: { values },
       frames: [
-        makeFrame('stack-push-start', 'Push / approach', `Read ${value} as the incoming value.`, 'newNode.value <- key', 'O(1)', stackNodes(model.values)),
-        makeFrame('stack-push-end', 'Push / settle', `${value} becomes the new top; the previous top is now below it.`, 'top <- top + 1', 'O(1)', stackNodes(values, values.length - 1)),
+        makeFrame('stack-push-start', 'Push / approach', `Read ${numeric} as the incoming value.`, 'newNode.value <- key', 'O(1)', stackNodes(model.values)),
+        makeFrame('stack-push-end', 'Push / settle', `${numeric} becomes the new top (LIFO); the previous top is now below it.`, 'top <- top + 1', 'O(1)', stackNodes(values, values.length - 1)),
       ],
     };
   }
   if (!model.values.length) {
-    return { model, frames: [makeFrame('stack-pop-empty', 'Pop / empty', 'The stack is empty, so there is no top value to remove.', 'if top = -1: return null', 'O(1)', stackNodes([]))] };
+    return { model, frames: [heldFrame('stack-pop-empty', 'Pop / empty', 'The stack is empty, so there is no top value to remove (underflow).', 'if top = -1: return null', stackNodes([]))] };
   }
   const values = model.values.slice(0, -1);
   return {
     model: { values },
     frames: [
-      makeFrame('stack-pop-start', 'Pop / lift', `The top value ${model.values[model.values.length - 1]} is selected for removal.`, 'value <- stack[top]', 'O(1)', stackNodes(model.values, model.values.length - 1)),
+      makeFrame('stack-pop-start', 'Pop / lift', `The top value ${model.values[model.values.length - 1]} is selected for removal (LIFO).`, 'value <- stack[top]', 'O(1)', stackNodes(model.values, model.values.length - 1)),
       makeFrame('stack-pop-end', 'Pop / close', 'The top block leaves the stage and the new top is exposed.', 'top <- top - 1', 'O(1)', stackNodes(values, values.length - 1)),
     ],
   };
 }
 
-function executeQueue(model: QueueModel, operation: string, value: number): OperationResult {
+function executeQueue(model: QueueModel, operation: string, rawInput?: string, randomize = false): OperationResult {
+  if (operation === 'peek') {
+    if (!model.values.length) {
+      return { model, frames: [heldFrame('queue-peek-empty', 'Peek / empty', 'The queue is empty, so there is no front value to inspect.', 'if front > rear: return null', queueNodes([]))] };
+    }
+    return {
+      model,
+      frames: [
+        makeFrame('queue-peek', 'Peek / inspect', `${model.values[0]} is the front value. Peek only reads it; the queue order is unchanged.`, 'value <- queue[front]', 'O(1)', queueNodes(model.values, 0)),
+      ],
+    };
+  }
   if (operation === 'enqueue') {
-    const values = [...model.values, value];
+    const parsed: ParsedInt = randomize ? { ok: true, value: randomValue() } : parseStrictInt(rawInput);
+    if (!parsed.ok) {
+      return { model, frames: [heldFrame('queue-enqueue-invalid', 'Enqueue / held', `Invalid input. ${parsed.reason}`, 'require integer in ±100000', queueNodes(model.values))] };
+    }
+    const numeric = parsed.value;
+    const values = [...model.values, numeric];
     return {
       model: { values },
       frames: [
-        makeFrame('queue-enqueue-start', 'Enqueue / approach', `${value} enters from the rear of the queue.`, 'rear <- rear + 1', 'O(1)', queueNodes(model.values)),
-        makeFrame('queue-enqueue-end', 'Enqueue / settle', `${value} is now the rear value; the front remains ready for service.`, 'queue[rear] <- key', 'O(1)', queueNodes(values, values.length - 1)),
+        makeFrame('queue-enqueue-start', 'Enqueue / approach', `${numeric} enters from the rear of the queue.`, 'rear <- rear + 1', 'O(1)', queueNodes(model.values)),
+        makeFrame('queue-enqueue-end', 'Enqueue / settle', `${numeric} is now the rear value (FIFO); the front remains ready for service.`, 'queue[rear] <- key', 'O(1)', queueNodes(values, values.length - 1)),
       ],
     };
   }
   if (!model.values.length) {
-    return { model, frames: [makeFrame('queue-dequeue-empty', 'Dequeue / empty', 'The queue is empty, so there is no front value to remove.', 'if front > rear: return null', 'O(1)', queueNodes([]))] };
+    return { model, frames: [heldFrame('queue-dequeue-empty', 'Dequeue / empty', 'The queue is empty, so there is no front value to remove (underflow).', 'if front > rear: return null', queueNodes([]))] };
   }
   const values = model.values.slice(1);
   return {
     model: { values },
     frames: [
-      makeFrame('queue-dequeue-start', 'Dequeue / release', `The front value ${model.values[0]} leaves the queue.`, 'value <- queue[front]', 'O(1)', queueNodes(model.values, 0)),
+      makeFrame('queue-dequeue-start', 'Dequeue / release', `The front value ${model.values[0]} leaves the queue (FIFO).`, 'value <- queue[front]', 'O(1)', queueNodes(model.values, 0)),
       makeFrame('queue-dequeue-end', 'Dequeue / close', 'Every remaining value shifts forward to close the gap.', 'front <- front + 1', 'O(1)', queueNodes(values, 0)),
     ],
   };
 }
 
-function executeBst(model: TreeModel, operation: string, value: number): OperationResult {
+function executeBst(model: TreeModel, operation: string, rawInput?: string, randomize = false): OperationResult {
+  if (operation === 'traverse') {
+    return traverseBstModel(model);
+  }
+  const parsed: ParsedInt = randomize ? { ok: true, value: randomValue() } : parseStrictInt(rawInput);
+  if (!parsed.ok) {
+    const [nodes, edges] = treeScene(model.root);
+    return { model, frames: [heldFrame(`bst-${operation}-invalid`, 'BST / held', `Invalid input. ${parsed.reason}`, 'require integer in ±100000', nodes, edges)] };
+  }
   if (operation === 'insert') {
-    return insertBstModel(model, value);
+    return insertBstModel(model, parsed.value);
   }
   if (operation === 'search') {
-    return searchBstModel(model, value);
+    return searchBstModel(model, parsed.value);
   }
-  return deleteBstModel(model, value);
+  return deleteBstModel(model, parsed.value);
+}
+
+export function isBstOrdered(root?: TreeNode): boolean {
+  let prev = -Number.MAX_SAFE_INTEGER;
+  let ordered = true;
+  const walk = (node?: TreeNode) => {
+    if (!node || !ordered) return;
+    walk(node.left);
+    if (node.value <= prev) ordered = false;
+    prev = node.value;
+    walk(node.right);
+  };
+  walk(root);
+  return ordered;
 }
 
 function insertBstModel(model: TreeModel, value: number): OperationResult {
   const frames: StepFrame[] = [];
   let sequence = 0;
-  const capture = (title: string, narration: string, pseudocode: string, root?: TreeNode, activeId?: number, complexity = 'O(h)') => {
+  let liveRoot = cloneTree(model.root);
+  let nextId = model.nextId;
+  let attachedId: number | undefined;
+  let duplicate = false;
+  const snapshot = (title: string, narration: string, pseudocode: string, activeId?: number) => {
     sequence += 1;
-    frames.push(makeFrame(`bst-insert-${sequence}`, title, narration, pseudocode, complexity, ...treeScene(root, { activeId })));
+    frames.push(makeFrame(`bst-insert-${sequence}`, title, narration, pseudocode, 'O(h)', ...treeScene(liveRoot, { activeId })));
   };
-  capture('Insert / begin', `Descend from the root to place ${value}.`, 'node <- root', model.root);
-  const insert = (node?: TreeNode): TreeNode => {
+  snapshot('Insert / begin', `Descend from the root to place ${value}. Duplicates are rejected.`, 'node <- root');
+  const rec = (node?: TreeNode): TreeNode => {
     if (!node) {
-      const next: TreeNode = { id: model.nextId, value };
-      capture('Insert / attach', `${value} attaches as a new leaf.`, 'newNode.parent <- node', next, next.id);
-      return next;
+      const created: TreeNode = { id: nextId, value };
+      nextId += 1;
+      attachedId = created.id;
+      return created;
     }
-    capture('Insert / compare', `${value} is compared with ${node.value}.`, `if key < ${node.value}: go left`, node, node.id);
+    snapshot('Insert / compare', `${value} is compared with ${node.value}.`, `if key < ${node.value}: go left`, node.id);
     if (value < node.value) {
-      node.left = insert(node.left);
-      capture('Insert / move left', `${value} is smaller, so the search moves left.`, 'node <- node.left', node, node.id);
+      node.left = rec(node.left);
     } else if (value > node.value) {
-      node.right = insert(node.right);
-      capture('Insert / move right', `${value} is larger, so the search moves right.`, 'node <- node.right', node, node.id);
+      node.right = rec(node.right);
     } else {
-      capture('Insert / duplicate', `${value} already exists; the tree is unchanged.`, 'return root', node, node.id);
+      duplicate = true;
+      snapshot('Insert / duplicate', `${value} already exists; the tree is unchanged.`, 'return root (no change)', node.id);
     }
     return node;
   };
-  const root = insert(cloneTree(model.root));
-  return { model: { root, nextId: model.nextId + (frames.some((frame) => frame.title === 'Insert / attach') ? 1 : 0) }, frames };
+  if (!liveRoot) {
+    liveRoot = rec(undefined);
+  } else {
+    rec(liveRoot);
+  }
+  if (duplicate) {
+    return { model, frames };
+  }
+  snapshot('Insert / attach', `${value} attaches as a new leaf. In-order order is preserved.`, 'attach leaf; ancestors unchanged', attachedId);
+  return { model: { root: liveRoot, nextId }, frames };
 }
 
 function searchBstModel(model: TreeModel, value: number): OperationResult {
   const frames: StepFrame[] = [];
   let sequence = 0;
-  let current = model.root;
-  const capture = (title: string, narration: string, pseudocode: string, node?: TreeNode, found = false) => {
+  const snapshot = (title: string, narration: string, pseudocode: string, activeId?: number) => {
     sequence += 1;
-    frames.push(makeFrame(`bst-search-${sequence}`, title, narration, pseudocode, found ? 'O(h)' : 'O(h)', ...treeScene(node ?? model.root, { activeId: node?.id })));
+    frames.push(makeFrame(`bst-search-${sequence}`, title, narration, pseudocode, 'O(h)', ...treeScene(model.root, { activeId })));
   };
-  capture('Search / begin', `Start at the root and compare ${value}.`, 'node <- root', current);
+  let current = model.root;
+  snapshot('Search / begin', `Start at the root and compare ${value}. The tree is not modified.`, 'node <- root', current?.id);
   while (current) {
     if (value === current.value) {
-      capture('Search / found', `${value} is present at this node.`, 'return node', current, true);
+      snapshot('Search / found', `${value} is present at this node. The tree is unchanged.`, 'return node', current.id);
       return { model, frames };
     }
     const direction = value < current.value ? 'left' : 'right';
-    capture('Search / compare', `${value} is compared with ${current.value}; move ${direction}.`, `node <- node.${direction}`, current);
+    snapshot('Search / compare', `${value} is compared with ${current.value}; move ${direction}.`, `node <- node.${direction}`, current.id);
     current = value < current.value ? current.left : current.right;
-    if (current) capture('Search / descend', `The ${direction} branch becomes the next comparison.`, `node <- node.${direction}`, current);
   }
-  capture('Search / absent', `${value} is not present; the search reached an empty branch.`, 'return null', model.root);
+  snapshot('Search / absent', `${value} is not present; the search reached an empty branch. The tree is unchanged.`, 'return null', undefined);
   return { model, frames };
 }
 
 function deleteBstModel(model: TreeModel, value: number): OperationResult {
   const frames: StepFrame[] = [];
   let sequence = 0;
-  const capture = (title: string, narration: string, pseudocode: string, root?: TreeNode, activeId?: number) => {
+  let liveRoot = cloneTree(model.root);
+  const snapshot = (title: string, narration: string, pseudocode: string, activeId?: number) => {
     sequence += 1;
-    frames.push(makeFrame(`bst-delete-${sequence}`, title, narration, pseudocode, 'O(h)', ...treeScene(root, { activeId })));
+    frames.push(makeFrame(`bst-delete-${sequence}`, title, narration, pseudocode, 'O(h)', ...treeScene(liveRoot, { activeId })));
   };
-  capture('Delete / locate', `Find the node containing ${value}.`, 'node <- root', model.root);
-  let current = model.root;
-  while (current && current.value !== value) {
-    capture('Delete / compare', `${value} is compared with ${current.value}.`, value < current.value ? 'node <- node.left' : 'node <- node.right', current, current.id);
+  snapshot('Delete / locate', `Find the node containing ${value}.`, 'node <- root');
+  let current = liveRoot;
+  let found = false;
+  while (current) {
+    if (current.value === value) {
+      found = true;
+      break;
+    }
+    snapshot('Delete / compare', `${value} is compared with ${current.value}.`, value < current.value ? 'node <- node.left' : 'node <- node.right', current.id);
     current = value < current.value ? current.left : current.right;
   }
-  if (!current) {
-    capture('Delete / absent', `${value} is not in the tree; no links change.`, 'return root', model.root);
+  if (!found) {
+    snapshot('Delete / absent', `${value} is not in the tree; no links change.`, 'return root (no change)');
     return { model, frames };
   }
-  const root = cloneTree(model.root);
-  const next = deleteNode(root, value);
-  capture('Delete / reconnect', `${value} is removed and child links are reconnected.`, 'splice node; relink children', next);
-  return { model: { root: next, nextId: model.nextId }, frames };
+  const childCount = (current?.left ? 1 : 0) + (current?.right ? 1 : 0);
+  const caseName = childCount === 0 ? 'leaf: remove the link from its parent' : childCount === 1 ? 'one child: splice the child into place' : 'two children: copy the in-order successor, then delete the successor';
+  snapshot('Delete / case', `Node ${value} has ${childCount === 0 ? 'no children' : childCount === 1 ? 'one child' : 'two children'} — ${caseName}.`, 'classify case', current?.id);
+  liveRoot = deleteNode(liveRoot, value);
+  snapshot('Delete / reconnect', `${value} is removed and links are reconnected. In-order order is preserved.`, 'splice node; relink children');
+  return { model: { root: liveRoot, nextId: model.nextId }, frames };
 }
 
-function deleteNode(node?: TreeNode, value?: number): TreeNode | undefined {
+function traverseBstModel(model: TreeModel): OperationResult {
+  const frames: StepFrame[] = [];
+  if (!model.root) {
+    return { model, frames: [heldFrame('bst-traverse-empty', 'Traverse / empty', 'The tree is empty, so in-order traversal yields nothing.', 'if root = null: return []', ...treeScene(undefined))] };
+  }
+  const order: TreeNode[] = [];
+  const walk = (node?: TreeNode) => {
+    if (!node) return;
+    walk(node.left);
+    order.push(node);
+    walk(node.right);
+  };
+  walk(model.root);
+  const seen: number[] = [];
+  order.forEach((node, index) => {
+    seen.push(node.id);
+    frames.push(
+      makeFrame(
+        `bst-traverse-${index + 1}`,
+        'Traverse / visit',
+        `In-order visit ${index + 1}/${order.length}: ${node.value}. Output so far: [${order.slice(0, index + 1).map((item) => item.value).join(', ')}].`,
+        'visit left; emit; visit right',
+        'O(n)',
+        ...treeScene(model.root, { activeId: node.id, visitedIds: seen.slice(0, -1), pathIds: seen }),
+      ),
+    );
+  });
+  const values = order.map((node) => node.value);
+  const sorted = values.every((item, index) => index === 0 || values[index - 1] < item);
+  frames.push(
+    makeFrame(
+      'bst-traverse-done',
+      'Traverse / complete',
+      `In-order output [${values.join(', ')}] ${sorted ? 'is sorted, confirming the BST invariant' : 'is NOT sorted — the BST invariant is violated'}. The tree is unchanged.`,
+      'in-order = sorted <=> BST valid',
+      'O(n)',
+      ...treeScene(model.root, { visitedIds: seen }),
+    ),
+  );
+  return { model, frames };
+}
+
+function deleteNode(node: TreeNode | undefined, value: number): TreeNode | undefined {
   if (!node) return undefined;
-  if (value !== undefined && value < node.value) {
+  if (value < node.value) {
     node.left = deleteNode(node.left, value);
-  } else if (value !== undefined && value > node.value) {
+  } else if (value > node.value) {
     node.right = deleteNode(node.right, value);
   } else {
     if (!node.left) return node.right;
     if (!node.right) return node.left;
     const successor = minValueNode(node.right);
     node.value = successor.value;
-    node.right = deleteNodeById(node.right, successor.id);
+    node.right = deleteMinNode(node.right);
   }
   return node;
 }
 
-function deleteNodeById(node?: TreeNode, id?: number): TreeNode | undefined {
-  if (!node || node.id === id) return node?.right;
-  node.left = deleteNodeById(node.left, id);
-  node.right = deleteNodeById(node.right, id);
+function deleteMinNode(node: TreeNode): TreeNode | undefined {
+  if (!node.left) return node.right;
+  node.left = deleteMinNode(node.left as TreeNode);
   return node;
 }
 
@@ -841,90 +1050,171 @@ function minValueNode(node?: TreeNode): TreeNode {
   return current;
 }
 
-function executeAvl(model: TreeModel, operation: string, value: number): OperationResult {
-  if (operation === 'insert') return insertAvlModel(model, value);
-  if (operation === 'delete') return deleteAvlModel(model, value);
-  return rotateAvlModel(model, operation);
+export function avlAudit(root?: TreeNode): { ok: boolean; worst: number; violations: number[] } {
+  let worst = 0;
+  const violations: number[] = [];
+  const walk = (node?: TreeNode) => {
+    if (!node) return;
+    const balance = getBalance(node);
+    if (Math.abs(balance) > worst) worst = Math.abs(balance);
+    if (Math.abs(balance) > 1) violations.push(node.value);
+    walk(node.left);
+    walk(node.right);
+  };
+  walk(root);
+  return { ok: violations.length === 0, worst, violations };
+}
+
+function executeAvl(model: TreeModel, operation: string, rawInput?: string, randomize = false): OperationResult {
+  if (operation === 'rotate-left' || operation === 'rotate-right') return rotateAvlModel(model, operation);
+  const parsed: ParsedInt = randomize ? { ok: true, value: randomValue() } : parseStrictInt(rawInput);
+  if (!parsed.ok) {
+    const [nodes, edges] = treeScene(model.root, { avl: true });
+    return { model, frames: [heldFrame(`avl-${operation}-invalid`, 'AVL / held', `Invalid input. ${parsed.reason}`, 'require integer in ±100000', nodes, edges)] };
+  }
+  if (operation === 'insert') return insertAvlModel(model, parsed.value);
+  if (operation === 'search') return searchAvlModel(model, parsed.value);
+  return deleteAvlModel(model, parsed.value);
 }
 
 function insertAvlModel(model: TreeModel, value: number): OperationResult {
   const frames: StepFrame[] = [];
   let sequence = 0;
+  let liveRoot = cloneTree(model.root);
   let nextId = model.nextId;
-  const capture = (title: string, narration: string, pseudocode: string, root?: TreeNode, activeId?: number, camera?: CameraPreset) => {
+  let attachedId: number | undefined;
+  let duplicate = false;
+  const rotations: Array<{ kind: string; at: number; caseName: string; camera: CameraPreset }> = [];
+  const snapshot = (title: string, narration: string, pseudocode: string, activeId?: number, camera?: CameraPreset) => {
     sequence += 1;
-    frames.push(makeFrame(`avl-insert-${sequence}`, title, narration, pseudocode, 'O(log n)', ...treeScene(root, { avl: true, activeId }), { camera }));
+    frames.push(makeFrame(`avl-insert-${sequence}`, title, narration, pseudocode, 'O(log n)', ...treeScene(liveRoot, { avl: true, activeId }), { camera }));
   };
-  capture('AVL / begin', `Insert ${value}, then check balance on the return path.`, 'node <- root', model.root);
+  snapshot('AVL / begin', `Insert ${value}, then check balance factors on the return path. Duplicates are rejected.`, 'node <- root');
   const insert = (node?: TreeNode): TreeNode => {
     if (!node) {
-      const next: TreeNode = { id: nextId, value, height: 1 };
+      const created: TreeNode = { id: nextId, value, height: 1 };
       nextId += 1;
-      capture('AVL / attach', `${value} attaches as a leaf with height 1.`, 'height(node) <- 1', next, next.id);
-      return next;
+      attachedId = created.id;
+      return created;
     }
-    capture('AVL / compare', `${value} is compared with ${node.value}.`, value < node.value ? 'go left' : 'go right', node, node.id);
+    snapshot('AVL / compare', `${value} is compared with ${node.value}.`, value < node.value ? 'go left' : 'go right', node.id);
     if (value < node.value) node.left = insert(node.left);
     else if (value > node.value) node.right = insert(node.right);
     else {
-      capture('AVL / duplicate', `${value} already exists; no rotation is needed.`, 'return root', node, node.id);
+      duplicate = true;
+      snapshot('AVL / duplicate', `${value} already exists; no rotation is needed and nothing changes.`, 'return root (no change)', node.id);
       return node;
     }
+    if (duplicate) return node; // subtree reported a duplicate: heights below are untouched, unwind without new frames
     node.height = nodeHeight(node);
     const balance = getBalance(node);
-    capture('AVL / measure', `Node ${node.value} now has balance factor ${balance}.`, 'balance <- height(left) - height(right)', node, node.id);
+    snapshot('AVL / measure', `Node ${node.value} now has balance factor ${balance} (left height minus right height).`, 'balance <- height(left) - height(right)', node.id);
     if (balance > 1) {
-      if (node.left && value < node.left.value) {
-        const rotated = rotateRight(node);
-        capture('AVL / rotate right', `A right rotation restores balance at ${node.value}.`, 'rotateRight(node)', rotated, rotated.id, 'rotate-right');
-        return rotated;
+      if (getBalance(node.left) >= 0) {
+        snapshot('AVL / case LL', `Left-left heavy at ${node.value}: a single right rotation fixes it.`, 'case LL: rotateRight(node)', node.id);
+        rotations.push({ kind: 'rotate right', at: node.value, caseName: 'LL', camera: 'rotate-right' });
+        return rotateRight(node);
       }
-      if (node.left) {
-        node.left = rotateLeft(node.left);
-        const rotated = rotateRight(node);
-        capture('AVL / double rotation', `A left-right rotation restores balance at ${node.value}.`, 'rotateLeft(left); rotateRight(node)', rotated, rotated.id, 'rotate-right');
-        return rotated;
-      }
+      snapshot('AVL / case LR', `Left-right heavy at ${node.value}: rotate the left child left first, then rotate right.`, 'case LR: rotateLeft(left); rotateRight(node)', node.id);
+      node.left = rotateLeft(node.left as TreeNode);
+      rotations.push({ kind: 'left-right double rotation', at: node.value, caseName: 'LR', camera: 'rotate-right' });
+      return rotateRight(node);
     }
     if (balance < -1) {
-      if (node.right && value > node.right.value) {
-        const rotated = rotateLeft(node);
-        capture('AVL / rotate left', `A left rotation restores balance at ${node.value}.`, 'rotateLeft(node)', rotated, rotated.id, 'rotate-left');
-        return rotated;
+      if (getBalance(node.right) <= 0) {
+        snapshot('AVL / case RR', `Right-right heavy at ${node.value}: a single left rotation fixes it.`, 'case RR: rotateLeft(node)', node.id);
+        rotations.push({ kind: 'rotate left', at: node.value, caseName: 'RR', camera: 'rotate-left' });
+        return rotateLeft(node);
       }
-      if (node.right) {
-        node.right = rotateRight(node.right);
-        const rotated = rotateLeft(node);
-        capture('AVL / double rotation', `A right-left rotation restores balance at ${node.value}.`, 'rotateRight(right); rotateLeft(node)', rotated, rotated.id, 'rotate-left');
-        return rotated;
-      }
+      snapshot('AVL / case RL', `Right-left heavy at ${node.value}: rotate the right child right first, then rotate left.`, 'case RL: rotateRight(right); rotateLeft(node)', node.id);
+      node.right = rotateRight(node.right as TreeNode);
+      rotations.push({ kind: 'right-left double rotation', at: node.value, caseName: 'RL', camera: 'rotate-left' });
+      return rotateLeft(node);
     }
     return node;
   };
-  const root = insert(cloneTree(model.root));
-  return { model: { root, nextId }, frames };
+  if (!liveRoot) {
+    liveRoot = insert(undefined);
+    snapshot('AVL / attach', `${value} becomes the root with height 1.`, 'root <- newNode', attachedId);
+  } else {
+    liveRoot = insert(liveRoot);
+    if (duplicate) {
+      return { model, frames };
+    }
+    snapshot('AVL / attach', `${value} attaches as a new leaf with height 1.`, 'height(node) <- 1', attachedId);
+  }
+  rotations.forEach((rotation) => {
+    snapshot(
+      `AVL / ${rotation.kind}`,
+      `A ${rotation.kind} at ${rotation.at} restores balance (${rotation.caseName} case).`,
+      rotation.caseName === 'LL' || rotation.caseName === 'LR' ? 'rotateRight(node)' : 'rotateLeft(node)',
+      undefined,
+      rotation.camera,
+    );
+  });
+  const audit = avlAudit(liveRoot);
+  snapshot(
+    'AVL / settled',
+    audit.ok
+      ? `Insertion complete: every balance factor satisfies |bf| ≤ 1 (worst ${audit.worst}).`
+      : `Imbalance remains at [${audit.violations.join(', ')}]; the invariant is violated.`,
+    'verify |balance| <= 1 everywhere',
+    attachedId,
+  );
+  return { model: { root: liveRoot, nextId }, frames };
+}
+
+function searchAvlModel(model: TreeModel, value: number): OperationResult {
+  const frames: StepFrame[] = [];
+  let sequence = 0;
+  const snapshot = (title: string, narration: string, pseudocode: string, activeId?: number) => {
+    sequence += 1;
+    frames.push(makeFrame(`avl-search-${sequence}`, title, narration, pseudocode, 'O(log n)', ...treeScene(model.root, { avl: true, activeId })));
+  };
+  let current = model.root;
+  snapshot('AVL / begin', `Search for ${value}; balance factors are shown at every node. The tree is not modified.`, 'node <- root', current?.id);
+  while (current) {
+    if (value === current.value) {
+      snapshot('AVL / found', `${value} is present with balance factor ${getBalance(current)}. The tree is unchanged.`, 'return node', current.id);
+      return { model, frames };
+    }
+    const direction = value < current.value ? 'left' : 'right';
+    snapshot('AVL / compare', `${value} is compared with ${current.value} (bf ${getBalance(current)}); move ${direction}.`, `node <- node.${direction}`, current.id);
+    current = value < current.value ? current.left : current.right;
+  }
+  snapshot('AVL / absent', `${value} is not present. The tree is unchanged.`, 'return null');
+  return { model, frames };
 }
 
 function deleteAvlModel(model: TreeModel, value: number): OperationResult {
   const frames: StepFrame[] = [];
   let sequence = 0;
-  const capture = (title: string, narration: string, pseudocode: string, root?: TreeNode, activeId?: number, camera?: CameraPreset) => {
+  let liveRoot = cloneTree(model.root);
+  const snapshot = (title: string, narration: string, pseudocode: string, activeId?: number, camera?: CameraPreset) => {
     sequence += 1;
-    frames.push(makeFrame(`avl-delete-${sequence}`, title, narration, pseudocode, 'O(log n)', ...treeScene(root, { avl: true, activeId }), { camera }));
+    frames.push(makeFrame(`avl-delete-${sequence}`, title, narration, pseudocode, 'O(log n)', ...treeScene(liveRoot, { avl: true, activeId }), { camera }));
   };
-  capture('AVL / locate', `Find ${value} before removing it.`, 'node <- root', model.root);
-  let current = model.root;
+  snapshot('AVL / locate', `Find ${value} before removing it.`, 'node <- root');
+  let current = liveRoot;
   while (current && current.value !== value) {
-    capture('AVL / compare', `${value} is compared with ${current.value}.`, value < current.value ? 'go left' : 'go right', current, current.id);
+    snapshot('AVL / compare', `${value} is compared with ${current.value} (bf ${getBalance(current)}).`, value < current.value ? 'go left' : 'go right', current.id);
     current = value < current.value ? current.left : current.right;
   }
   if (!current) {
-    capture('AVL / absent', `${value} is not present; the AVL is unchanged.`, 'return root', model.root);
+    snapshot('AVL / absent', `${value} is not present; the AVL is unchanged.`, 'return root (no change)');
     return { model, frames };
   }
-  const root = deleteAvlNode(cloneTree(model.root), value);
-  capture('AVL / rebalance', 'The affected path is rebalanced while node identities remain stable.', 'rebalance affected path', root, root?.id);
-  return { model: { root, nextId: model.nextId }, frames };
+  liveRoot = deleteAvlNode(liveRoot, value);
+  const audit = avlAudit(liveRoot);
+  snapshot(
+    'AVL / rebalance',
+    audit.ok
+      ? `${value} is removed and the affected path is rebalanced; every balance factor satisfies |bf| ≤ 1 (worst ${audit.worst}).`
+      : `${value} is removed but imbalance remains at [${audit.violations.join(', ')}]; the invariant is violated.`,
+    'delete; rebalance affected path',
+    liveRoot?.id,
+  );
+  return { model: { root: liveRoot, nextId: model.nextId }, frames };
 }
 
 function deleteAvlNode(node: TreeNode | undefined, value: number): TreeNode | undefined {
@@ -962,28 +1252,48 @@ function rebalanceAvl(node: TreeNode): TreeNode {
 
 function rotateAvlModel(model: TreeModel, operation: string): OperationResult {
   const root = cloneTree(model.root);
-  if (!root) return { model, frames: [makeFrame('avl-rotate-empty', 'AVL / empty', 'There is no node to rotate.', 'if node = null: return', 'O(1)', ...treeScene(root, { avl: true }))] };
+  if (!root) return { model, frames: [heldFrame('avl-rotate-empty', 'AVL / empty', 'There is no node to rotate.', 'if node = null: return', ...treeScene(root, { avl: true }))] };
   if (operation === 'rotate-left' && root.right) {
-    const next = rebalanceAvl(rotateLeft(root));
+    const pivotValue = root.right.value;
+    const next = rotateLeft(root);
+    const audit = avlAudit(next);
     return {
       model: { root: next, nextId: model.nextId },
       frames: [
-        makeFrame('avl-rotate-before', 'AVL / pivot', `Prepare a left rotation around ${root.value}.`, 'pivot <- node.right', 'O(1)', ...treeScene(root, { avl: true, activeId: root.id })),
-        makeFrame('avl-rotate-after', 'AVL / rotated', 'The right child becomes the root and the old root becomes its left child; balance is restored along the affected path.', 'pivot.left <- node; rebalance', 'O(1)', ...treeScene(next, { avl: true, activeId: next.id }), { camera: 'rotate-left' }),
+        makeFrame('avl-rotate-before', 'AVL / pivot', `Prepare a manual left rotation around ${root.value} with pivot ${pivotValue}.`, 'pivot <- node.right', 'O(1)', ...treeScene(root, { avl: true, activeId: root.id })),
+        makeFrame(
+          'avl-rotate-after',
+          'AVL / rotated',
+          `The right child becomes the subtree root and ${root.value} becomes its left child. This is a raw single rotation (no automatic rebalancing): worst |bf| is now ${audit.worst}${audit.ok ? ', within AVL limits' : ' — outside AVL limits, insert/delete path would rebalance further'}.`,
+          'pivot.left <- node; update heights',
+          'O(1)',
+          ...treeScene(next, { avl: true, activeId: next.id }),
+          { camera: 'rotate-left' },
+        ),
       ],
     };
   }
   if (operation === 'rotate-right' && root.left) {
-    const next = rebalanceAvl(rotateRight(root));
+    const pivotValue = root.left.value;
+    const next = rotateRight(root);
+    const audit = avlAudit(next);
     return {
       model: { root: next, nextId: model.nextId },
       frames: [
-        makeFrame('avl-rotate-before', 'AVL / pivot', `Prepare a right rotation around ${root.value}.`, 'pivot <- node.left', 'O(1)', ...treeScene(root, { avl: true, activeId: root.id })),
-        makeFrame('avl-rotate-after', 'AVL / rotated', 'The left child becomes the root and the old root becomes its right child; balance is restored along the affected path.', 'pivot.right <- node; rebalance', 'O(1)', ...treeScene(next, { avl: true, activeId: next.id }), { camera: 'rotate-right' }),
+        makeFrame('avl-rotate-before', 'AVL / pivot', `Prepare a manual right rotation around ${root.value} with pivot ${pivotValue}.`, 'pivot <- node.left', 'O(1)', ...treeScene(root, { avl: true, activeId: root.id })),
+        makeFrame(
+          'avl-rotate-after',
+          'AVL / rotated',
+          `The left child becomes the subtree root and ${root.value} becomes its right child. This is a raw single rotation (no automatic rebalancing): worst |bf| is now ${audit.worst}${audit.ok ? ', within AVL limits' : ' — outside AVL limits, insert/delete path would rebalance further'}.`,
+          'pivot.right <- node; update heights',
+          'O(1)',
+          ...treeScene(next, { avl: true, activeId: next.id }),
+          { camera: 'rotate-right' },
+        ),
       ],
     };
   }
-  return { model, frames: [makeFrame('avl-rotate-invalid', 'AVL / held', 'The root does not have the child required for that rotation.', 'require pivot child', 'O(1)', ...treeScene(root, { avl: true, activeId: root.id }))] };
+  return { model, frames: [heldFrame('avl-rotate-held', 'AVL / held', 'The root does not have the child required for that rotation.', 'require pivot child', ...treeScene(root, { avl: true, activeId: root.id }))] };
 }
 
 function rotateLeft(node: TreeNode): TreeNode {
@@ -1025,21 +1335,38 @@ function cloneTree(node?: TreeNode): TreeNode | undefined {
   };
 }
 
-function executeHeap(model: HeapModel, operation: string, value: number): OperationResult {
+function executeHeap(model: HeapModel, operation: string, rawInput?: string, randomize = false): OperationResult {
   const prepared = prepareHeap(model);
   const source: HeapModel = { values: prepared.values };
-  const result = operation === 'insert'
-    ? heapInsert(source, value)
-    : operation === 'extract'
-      ? heapExtract(source)
-      : operation === 'sift-up'
-        ? heapSiftUp(source)
-        : heapSiftDown(source);
+  let result: OperationResult;
+  if (operation === 'insert') {
+    const parsed: ParsedInt = randomize ? { ok: true, value: randomValue() } : parseStrictInt(rawInput);
+    if (!parsed.ok) {
+      const [nodes, edges] = heapScene(source.values);
+      return { model, frames: [heldFrame('heap-insert-invalid', 'Heap / held', `Invalid input. ${parsed.reason}`, 'require integer in ±100000', nodes, edges, { array: source.values.map(String) })] };
+    }
+    result = heapInsert(source, parsed.value);
+  } else if (operation === 'extract') {
+    result = heapExtract(source);
+  } else if (operation === 'peek') {
+    result = heapPeek(source);
+  } else if (operation === 'delete') {
+    const parsed: ParsedInt = randomize ? { ok: true, value: randomValue() } : parseStrictInt(rawInput);
+    if (!parsed.ok) {
+      const [nodes, edges] = heapScene(source.values);
+      return { model, frames: [heldFrame('heap-delete-invalid', 'Heap / held', `Invalid input. ${parsed.reason}`, 'require integer in ±100000', nodes, edges, { array: source.values.map(String) })] };
+    }
+    result = heapDeleteValue(source, parsed.value);
+  } else if (operation === 'sift-up') {
+    result = heapSiftUp(source);
+  } else {
+    result = heapSiftDown(source);
+  }
   if (!prepared.normalized) return result;
   return {
     model: result.model,
     frames: [
-      makeFrame('heap-normalize', 'Heap / normalize', 'The input array is normalized before the requested repair begins.', 'heapify(array)', 'O(n)', ...heapScene(prepared.values), { array: prepared.values.map(String) }),
+      makeFrame('heap-normalize', 'Heap / normalize', 'The loaded array violated the min-heap property, so it is heapified first. Later steps run on the repaired heap.', 'heapify(array)', 'O(n)', ...heapScene(prepared.values), { array: prepared.values.map(String) }),
       ...result.frames,
     ],
   };
@@ -1047,27 +1374,30 @@ function executeHeap(model: HeapModel, operation: string, value: number): Operat
 
 function heapInsert(model: HeapModel, value: number): OperationResult {
   const values = [...model.values, value];
-  const frames: StepFrame[] = [makeFrame('heap-insert-start', 'Heap / append', `${value} is appended at the next complete-tree position.`, 'heap[n] <- key', 'O(log n)', ...heapScene(values, [values.length - 1]), { array: values.map(String) })];
+  const frames: StepFrame[] = [makeFrame('heap-insert-start', 'Heap / append', `${value} is appended at the next complete-tree position (duplicates are allowed).`, 'heap[n] <- key', 'O(log n)', ...heapScene(values, [values.length - 1]), { array: values.map(String) })];
   let index = values.length - 1;
   let sequence = 1;
+  let moved = value;
   while (index > 0) {
     const parent = Math.floor((index - 1) / 2);
     if (values[parent] <= values[index]) break;
+    moved = values[index];
     [values[parent], values[index]] = [values[index], values[parent]];
     sequence += 1;
-    frames.push(makeFrame(`heap-insert-swap-${sequence}`, 'Heap / sift up', `${values[index]} swaps with its smaller parent at index ${parent}.`, 'swap(i, parent(i))', 'O(log n)', ...heapScene(values, [index, parent]), { array: values.map(String), activeIndices: [index, parent] }));
+    frames.push(makeFrame(`heap-insert-swap-${sequence}`, 'Heap / sift up', `${moved} is smaller than its parent ${values[index]}, so they swap.`, 'swap(i, parent(i))', 'O(log n)', ...heapScene(values, [index, parent]), { array: values.map(String), activeIndices: [index, parent] }));
     index = parent;
   }
-  frames.push(makeFrame('heap-insert-end', 'Heap / settled', 'The parent is no larger than its children; the heap property is restored.', 'while key < parent: swap', 'O(log n)', ...heapScene(values), { array: values.map(String) }));
+  frames.push(makeFrame('heap-insert-end', 'Heap / settled', `The min-heap property holds: every parent is ≤ its children. Minimum is ${values[0]}.`, 'while key < parent: swap', 'O(log n)', ...heapScene(values), { array: values.map(String) }));
   return { model: { values }, frames };
 }
 
 function heapExtract(model: HeapModel): OperationResult {
   if (!model.values.length) {
-    return { model, frames: [makeFrame('heap-extract-empty', 'Heap / empty', 'There is no root value to extract.', 'if n = 0: return null', 'O(1)', ...heapScene([]), { array: [] })] };
+    return { model, frames: [heldFrame('heap-extract-empty', 'Heap / empty', 'There is no minimum to extract; the heap is empty.', 'if n = 0: return null', ...heapScene([]), { array: [] })] };
   }
   const values = [...model.values];
-  const frames: StepFrame[] = [makeFrame('heap-extract-start', 'Heap / release', `${values[0]} is removed from the root.`, 'root <- heap[0]', 'O(log n)', ...heapScene(values, [0]), { array: values.map(String) })];
+  const minimum = values[0];
+  const frames: StepFrame[] = [makeFrame('heap-extract-start', 'Heap / release', `${minimum} (the minimum) is removed from the root.`, 'min <- heap[0]', 'O(log n)', ...heapScene(values, [0]), { array: values.map(String) })];
   const last = values.pop();
   if (last !== undefined && values.length) values[0] = last;
   let index = 0;
@@ -1079,37 +1409,124 @@ function heapExtract(model: HeapModel): OperationResult {
     if (left < values.length && values[left] < values[smallest]) smallest = left;
     if (right < values.length && values[right] < values[smallest]) smallest = right;
     if (smallest === index) break;
+    const moving = values[index];
     [values[index], values[smallest]] = [values[smallest], values[index]];
     sequence += 1;
-    frames.push(makeFrame(`heap-extract-swap-${sequence}`, 'Heap / sift down', `${values[index]} moves toward its correct child position.`, 'swap(i, smallestChild)', 'O(log n)', ...heapScene(values, [index, smallest]), { array: values.map(String), activeIndices: [index, smallest] }));
+    frames.push(makeFrame(`heap-extract-swap-${sequence}`, 'Heap / sift down', `${moving} is larger than child ${values[smallest]}, so they swap.`, 'swap(i, smallestChild)', 'O(log n)', ...heapScene(values, [index, smallest]), { array: values.map(String), activeIndices: [index, smallest] }));
     index = smallest;
   }
-  frames.push(makeFrame('heap-extract-end', 'Heap / settled', 'The last value has found its ordered place and the complete tree is valid.', 'restore heap property', 'O(log n)', ...heapScene(values), { array: values.map(String) }));
+  frames.push(makeFrame('heap-extract-end', 'Heap / settled', values.length ? `Extraction complete: ${minimum} removed; new minimum is ${values[0]} and the min-heap property holds.` : `Extraction complete: ${minimum} removed; the heap is now empty.`, 'restore heap property', 'O(log n)', ...heapScene(values), { array: values.map(String) }));
+  return { model: { values }, frames };
+}
+
+function heapPeek(model: HeapModel): OperationResult {
+  if (!model.values.length) {
+    return { model, frames: [heldFrame('heap-peek-empty', 'Heap / empty', 'There is no minimum to inspect; the heap is empty.', 'if n = 0: return null', ...heapScene([]), { array: [] })] };
+  }
+  return {
+    model,
+    frames: [
+      makeFrame('heap-peek', 'Heap / inspect', `${model.values[0]} is the minimum at the root. Peek only reads it; the heap is unchanged.`, 'return heap[0]', 'O(1)', ...heapScene(model.values, [0]), { array: model.values.map(String), activeIndices: [0] }),
+    ],
+  };
+}
+
+function heapDeleteValue(model: HeapModel, value: number): OperationResult {
+  const target = model.values.indexOf(value);
+  if (target === -1) {
+    const [nodes, edges] = heapScene(model.values);
+    return { model, frames: [heldFrame('heap-delete-absent', 'Heap / absent', `${value} is not in the heap; nothing is removed.`, 'if key not in heap: return', nodes, edges, { array: model.values.map(String) })] };
+  }
+  const values = [...model.values];
+  const frames: StepFrame[] = [
+    makeFrame('heap-delete-start', 'Heap / locate', `One occurrence of ${value} is at index ${target}; it is replaced by the last element.`, 'heap[i] <- heap[n-1]; n <- n-1', 'O(log n)', ...heapScene(values, [target]), { array: values.map(String), activeIndices: [target] }),
+  ];
+  const last = values.pop() as number;
+  let swapped = false;
+  let sequence = 1;
+  const removedLast = target >= values.length;
+  if (target < values.length) {
+    values[target] = last;
+    // Sift up first (in case last is smaller than the parent), then sift down.
+    let index = target;
+    while (index > 0) {
+      const parent = Math.floor((index - 1) / 2);
+      if (values[parent] <= values[index]) break;
+      const moving = values[index];
+      [values[parent], values[index]] = [values[index], values[parent]];
+      swapped = true;
+      sequence += 1;
+      frames.push(makeFrame(`heap-delete-swap-${sequence}`, 'Heap / repair', `${moving} moves up past its larger parent.`, 'swap(i, parent(i))', 'O(log n)', ...heapScene(values, [index, parent]), { array: values.map(String), activeIndices: [index, parent] }));
+      index = parent;
+    }
+    let down = index;
+    while (true) {
+      const left = down * 2 + 1;
+      const right = left + 1;
+      let smallest = down;
+      if (left < values.length && values[left] < values[smallest]) smallest = left;
+      if (right < values.length && values[right] < values[smallest]) smallest = right;
+      if (smallest === down) break;
+      const moving = values[down];
+      [values[down], values[smallest]] = [values[smallest], values[down]];
+      swapped = true;
+      sequence += 1;
+      frames.push(makeFrame(`heap-delete-swap-${sequence}`, 'Heap / repair', `${moving} moves down past its smaller child.`, 'swap(i, smallestChild)', 'O(log n)', ...heapScene(values, [down, smallest]), { array: values.map(String), activeIndices: [down, smallest] }));
+      down = smallest;
+    }
+  } else {
+    swapped = true; // removed the last element; shape changed
+  }
+  frames.push(
+    makeFrame(
+      'heap-delete-end',
+      'Heap / settled',
+      swapped
+        ? `One occurrence of ${value} is gone and swaps restored the min-heap property${values.length ? `; minimum is ${values[0]}` : '; the heap is now empty'}.`
+        : removedLast
+          ? `The last element held ${value}; removing it needs no repair and the heap is unchanged otherwise.`
+          : `One occurrence of ${value} is removed; the replacement already satisfied the min-heap property, so no swaps were needed.`,
+      'restore heap property',
+      'O(log n)',
+      ...heapScene(values),
+      { array: values.map(String) },
+    ),
+  );
   return { model: { values }, frames };
 }
 
 function heapSiftUp(model: HeapModel): OperationResult {
+  if (!model.values.length) {
+    return { model, frames: [heldFrame('heap-sift-up-empty', 'Heap / empty', 'The heap is empty; there is nothing to sift.', 'if n = 0: return', ...heapScene([]), { array: [] })] };
+  }
   const values = [...model.values];
   const frames: StepFrame[] = [makeFrame('heap-sift-up-start', 'Heap / inspect', 'Begin at the last array cell and compare with its parent.', 'i <- n - 1', 'O(log n)', ...heapScene(values, [values.length - 1]), { array: values.map(String), activeIndices: [values.length - 1] })];
   let index = values.length - 1;
   let sequence = 1;
+  let swapped = false;
   while (index > 0) {
     const parent = Math.floor((index - 1) / 2);
     if (values[parent] <= values[index]) break;
+    const moving = values[index];
     [values[parent], values[index]] = [values[index], values[parent]];
+    swapped = true;
     sequence += 1;
-    frames.push(makeFrame(`heap-sift-up-${sequence}`, 'Heap / swap', `The value at index ${index} swaps with index ${parent}.`, 'swap(i, parent(i))', 'O(log n)', ...heapScene(values, [index, parent]), { array: values.map(String), activeIndices: [index, parent] }));
+    frames.push(makeFrame(`heap-sift-up-${sequence}`, 'Heap / swap', `${moving} is smaller than parent ${values[index]}, so they swap.`, 'swap(i, parent(i))', 'O(log n)', ...heapScene(values, [index, parent]), { array: values.map(String), activeIndices: [index, parent] }));
     index = parent;
   }
-  frames.push(makeFrame('heap-sift-up-end', 'Heap / repaired', 'No parent is larger than its child.', 'parent(i) <= i', 'O(log n)', ...heapScene(values), { array: values.map(String) }));
+  frames.push(makeFrame('heap-sift-up-end', swapped ? 'Heap / repaired' : 'Heap / already valid', swapped ? 'No parent is larger than its child.' : 'No swaps were needed; the min-heap property already held and the array is unchanged.', 'parent(i) <= i', 'O(log n)', ...heapScene(values), { array: values.map(String) }));
   return { model: { values }, frames };
 }
 
 function heapSiftDown(model: HeapModel): OperationResult {
+  if (!model.values.length) {
+    return { model, frames: [heldFrame('heap-sift-down-empty', 'Heap / empty', 'The heap is empty; there is nothing to sift.', 'if n = 0: return', ...heapScene([]), { array: [] })] };
+  }
   const values = [...model.values];
   const frames: StepFrame[] = [makeFrame('heap-sift-down-start', 'Heap / inspect', 'Begin at the root and compare both children.', 'i <- 0', 'O(log n)', ...heapScene(values, [0]), { array: values.map(String), activeIndices: [0] })];
   let index = 0;
   let sequence = 1;
+  let swapped = false;
   while (true) {
     const left = index * 2 + 1;
     const right = left + 1;
@@ -1117,12 +1534,14 @@ function heapSiftDown(model: HeapModel): OperationResult {
     if (left < values.length && values[left] < values[smallest]) smallest = left;
     if (right < values.length && values[right] < values[smallest]) smallest = right;
     if (smallest === index) break;
+    const moving = values[index];
     [values[index], values[smallest]] = [values[smallest], values[index]];
+    swapped = true;
     sequence += 1;
-    frames.push(makeFrame(`heap-sift-down-${sequence}`, 'Heap / swap', `${values[index]} moves down toward the smaller child.`, 'swap(i, smallestChild)', 'O(log n)', ...heapScene(values, [index, smallest]), { array: values.map(String), activeIndices: [index, smallest] }));
+    frames.push(makeFrame(`heap-sift-down-${sequence}`, 'Heap / swap', `${moving} is larger than child ${values[smallest]}, so they swap.`, 'swap(i, smallestChild)', 'O(log n)', ...heapScene(values, [index, smallest]), { array: values.map(String), activeIndices: [index, smallest] }));
     index = smallest;
   }
-  frames.push(makeFrame('heap-sift-down-end', 'Heap / repaired', 'Every parent is no larger than its children.', 'heap property restored', 'O(log n)', ...heapScene(values), { array: values.map(String) }));
+  frames.push(makeFrame('heap-sift-down-end', swapped ? 'Heap / repaired' : 'Heap / already valid', swapped ? 'Every parent is no larger than its children.' : 'No swaps were needed; the min-heap property already held and the array is unchanged.', 'heap property restored', 'O(log n)', ...heapScene(values), { array: values.map(String) }));
   return { model: { values }, frames };
 }
 
@@ -1149,11 +1568,36 @@ function nextGraphVertexId(model: GraphModel): number {
   return nextId;
 }
 
+function parseEdgePairInput(input: string): { from: number; to: number } | null {
+  const parts = input.trim().split(/\s+/);
+  if (parts.length !== 2) return null;
+  const values = parts.map(Number);
+  if (!values.every((value) => Number.isSafeInteger(value))) return null;
+  if (Math.abs(values[0]) > MAX_INPUT_VALUE || Math.abs(values[1]) > MAX_INPUT_VALUE) return null;
+  return { from: values[0], to: values[1] };
+}
+
 function executeGraph(model: GraphModel, operation: string, input: string): OperationResult {
   if (operation === 'add-vertex') {
-    const vertex = nextGraphVertexId(model);
-    const vertices = [...model.vertices, vertex];
-    const next: GraphModel = { vertices, edges: model.edges, nextId: vertex + 1 };
+    const trimmed = input.trim().toLowerCase();
+    let vertex: number;
+    if (!trimmed || trimmed === 'auto') {
+      vertex = nextGraphVertexId(model);
+    } else {
+      const parsed = parseVertexInput(input);
+      if (parsed === null || Math.abs(parsed) > MAX_INPUT_VALUE) {
+        const [nodes, edges] = graphScene(model);
+        return { model, frames: [heldFrame('graph-add-vertex-invalid', 'Graph / held', 'A vertex label must be a single integer (or empty for auto).', 'require integer label or auto', nodes, edges)] };
+      }
+      if (model.vertices.includes(parsed)) {
+        const [nodes, edges] = graphScene(model, { activeId: parsed });
+        return { model, frames: [heldFrame('graph-add-vertex-duplicate', 'Graph / held', `Vertex ${parsed} already exists; nothing is added.`, 'require v not in V', nodes, edges)] };
+      }
+      vertex = parsed;
+    }
+    const vertices = [...model.vertices, vertex].sort((a, b) => a - b);
+    const nextId = Math.max(nextGraphVertexId(model), vertex + 1);
+    const next: GraphModel = { vertices, edges: model.edges, nextId };
     return {
       model: next,
       frames: [
@@ -1168,34 +1612,93 @@ function executeGraph(model: GraphModel, operation: string, input: string): Oper
     const edges = canLink && parsed ? [...model.edges, parsed] : model.edges;
     const next: GraphModel = { ...model, edges };
     const requestedEdge = parsed ? edgeId(parsed.from, parsed.to) : undefined;
+    if (!parsed || !canLink) {
+      const [nodes, edges] = graphScene(model);
+      const reason = !parsed
+        ? 'An edge needs two existing vertices and one non-negative integer weight ("from to weight").'
+        : 'Both vertices must exist, differ, and the undirected edge must be new.';
+      return {
+        model: next,
+        frames: [
+          makeFrame('graph-add-edge-start', 'Graph / validate', parsed ? `Connect ${parsed.from} to ${parsed.to} with weight ${parsed.weight}.` : reason, 'E <- E + {(u, v, w)}', 'O(1)', nodes, edges),
+          heldFrame('graph-add-edge-held', 'Graph / held', reason, 'require u, v in V and edge not in E', nodes, edges),
+        ],
+      };
+    }
     return {
       model: next,
       frames: [
-        makeFrame('graph-add-edge-start', parsed ? 'Graph / connect' : 'Graph / validate', parsed ? `Connect ${parsed.from} to ${parsed.to} with weight ${parsed.weight}.` : 'An edge needs two existing vertices and one non-negative integer weight.', 'E <- E + {(u, v, w)}', 'O(1)', ...graphScene(model)),
+        makeFrame('graph-add-edge-start', 'Graph / connect', `Connect ${parsed.from} to ${parsed.to} with weight ${parsed.weight}.`, 'E <- E + {(u, v, w)}', 'O(1)', ...graphScene(model)),
         makeFrame(
           'graph-add-edge-end',
-          canLink ? 'Graph / linked' : 'Graph / held',
-          canLink ? 'The weighted edge is now available to traversal algorithms.' : 'Both vertices must exist, differ, and the undirected edge must be new.',
-          canLink ? 'adj[u].append((v, w))' : 'require u, v in V and edge not in E',
+          'Graph / linked',
+          'The weighted edge is now available to traversal algorithms.',
+          'adj[u].append((v, w))',
           'O(1)',
-          ...graphScene(next, { activeEdge: canLink ? requestedEdge : undefined }),
+          ...graphScene(next, { activeEdge: requestedEdge }),
         ),
+      ],
+    };
+  }
+  if (operation === 'remove-vertex') {
+    const target = parseVertexInput(input);
+    if (target === null || !model.vertices.includes(target)) {
+      const [nodes, edges] = graphScene(model);
+      return { model, frames: [heldFrame('graph-remove-vertex-invalid', 'Graph / held', 'Choose an existing integer vertex to remove.', 'require v in V', nodes, edges)] };
+    }
+    const before = model.edges.filter((edge) => edge.from === target || edge.to === target).length;
+    const next: GraphModel = {
+      vertices: model.vertices.filter((vertex) => vertex !== target),
+      edges: model.edges.filter((edge) => edge.from !== target && edge.to !== target),
+      nextId: model.nextId,
+    };
+    return {
+      model: next,
+      frames: [
+        makeFrame('graph-remove-vertex-start', 'Graph / isolate', `Vertex ${target} has ${before} incident edge${before === 1 ? '' : 's'} to detach.`, 'for e incident to v: remove e', 'O(E)', ...graphScene(model, { activeId: target })),
+        makeFrame('graph-remove-vertex-end', 'Graph / removed', `${target} and its incident edges are gone; remaining vertices are unchanged.`, 'V <- V - {v}', 'O(V + E)', ...graphScene(next)),
+      ],
+    };
+  }
+  if (operation === 'remove-edge') {
+    const pair = parseEdgePairInput(input);
+    const index = pair ? model.edges.findIndex((edge) => (edge.from === pair.from && edge.to === pair.to) || (edge.from === pair.to && edge.to === pair.from)) : -1;
+    if (!pair || index === -1) {
+      const [nodes, edges] = graphScene(model);
+      return { model, frames: [heldFrame('graph-remove-edge-invalid', 'Graph / held', 'Give two connected vertices as "from to"; that edge was not found, so nothing changes.', 'require (u, v) in E', nodes, edges)] };
+    }
+    const removed = model.edges[index];
+    const next: GraphModel = { ...model, edges: model.edges.filter((_, item) => item !== index) };
+    return {
+      model: next,
+      frames: [
+        makeFrame('graph-remove-edge-start', 'Graph / detach', `Edge ${removed.from}–${removed.to} (weight ${removed.weight}) is selected.`, 'e <- (u, v)', 'O(E)', ...graphScene(model, { activeEdge: edgeId(removed.from, removed.to) })),
+        makeFrame('graph-remove-edge-end', 'Graph / removed', `The edge between ${removed.from} and ${removed.to} is gone; vertices remain.`, 'E <- E - {(u, v)}', 'O(E)', ...graphScene(next)),
       ],
     };
   }
   if (operation === 'bfs') {
     const start = parseVertexInput(input);
-    return start !== null && model.vertices.includes(start) ? graphBfs(model, start) : { model, frames: [makeFrame('graph-bfs-invalid', 'BFS / held', 'Choose an existing integer vertex.', 'require source in V', 'O(1)', ...graphScene(model))] };
+    if (start === null || !model.vertices.includes(start)) {
+      const [nodes, edges] = graphScene(model);
+      return { model, frames: [heldFrame('graph-bfs-invalid', 'BFS / held', 'Choose an existing integer vertex as the source.', 'require source in V', nodes, edges)] };
+    }
+    return graphBfs(model, start);
   }
   if (operation === 'dfs') {
     const start = parseVertexInput(input);
-    return start !== null && model.vertices.includes(start) ? graphDfs(model, start) : { model, frames: [makeFrame('graph-dfs-invalid', 'DFS / held', 'Choose an existing integer vertex.', 'require source in V', 'O(1)', ...graphScene(model))] };
+    if (start === null || !model.vertices.includes(start)) {
+      const [nodes, edges] = graphScene(model);
+      return { model, frames: [heldFrame('graph-dfs-invalid', 'DFS / held', 'Choose an existing integer vertex as the source.', 'require source in V', nodes, edges)] };
+    }
+    return graphDfs(model, start);
   }
   const parts = input.trim().split(/\s+/);
   const start = parts.length === 2 ? Number(parts[0]) : Number.NaN;
   const target = parts.length === 2 ? Number(parts[1]) : Number.NaN;
   if (!Number.isSafeInteger(start) || !Number.isSafeInteger(target) || !model.vertices.includes(start) || !model.vertices.includes(target)) {
-    return { model, frames: [makeFrame('graph-dijkstra-invalid', 'Dijkstra / held', 'Start and target must be two existing integer vertices.', 'require source, target in V', 'O(1)', ...graphScene(model))] };
+    const [nodes, edges] = graphScene(model);
+    return { model, frames: [heldFrame('graph-dijkstra-invalid', 'Dijkstra / held', 'Start and target must be two existing integer vertices ("start target").', 'require source, target in V', nodes, edges)] };
   }
   return graphDijkstra(model, start, target);
 }
@@ -1225,8 +1728,15 @@ function graphBfs(model: GraphModel, start: number): OperationResult {
       }
     });
   }
-  capture('BFS / complete', 'The queue is empty; every reachable vertex has been visited in layers.', 'while queue: visit', undefined, [...visited]);
+  capture('BFS / complete', disconnectedBfsNarration(model, visited), 'while queue: visit', undefined, [...visited]);
   return { model, frames };
+}
+
+function disconnectedBfsNarration(model: GraphModel, visited: Set<number>): string {
+  const missed = model.vertices.filter((vertex) => !visited.has(vertex));
+  return missed.length
+    ? `The queue is empty; visited [${[...visited].join(', ')}] in layers. Unreached [${missed.join(', ')}] ${missed.length === 1 ? 'is' : 'are'} disconnected from the start.`
+    : 'The queue is empty; every vertex was reached in layers.';
 }
 
 function graphDfs(model: GraphModel, start: number): OperationResult {
@@ -1258,8 +1768,15 @@ function graphDfs(model: GraphModel, start: number): OperationResult {
       stack.pop();
     }
   }
-  capture('DFS / complete', 'All reachable branches have returned to the start.', 'for neighbor: visit', undefined, [...visited]);
+  capture('DFS / complete', disconnectedDfsNarration(model, visited), 'for neighbor: visit', undefined, [...visited]);
   return { model, frames };
+}
+
+function disconnectedDfsNarration(model: GraphModel, visited: Set<number>): string {
+  const missed = model.vertices.filter((vertex) => !visited.has(vertex));
+  return missed.length
+    ? `All branches from the start returned. Visited [${[...visited].join(', ')}]; unreached [${missed.join(', ')}] ${missed.length === 1 ? 'is' : 'are'} disconnected.`
+    : 'All branches returned to the start; every vertex was reached.';
 }
 
 function graphDijkstra(model: GraphModel, start: number, target: number): OperationResult {
@@ -1316,6 +1833,6 @@ function graphDijkstra(model: GraphModel, start: number, target: number): Operat
     pathIds.length = 0;
     pathEdges.length = 0;
   }
-  capture('Dijkstra / path', `The shortest route to ${target} has distance ${distances[target] === Number.POSITIVE_INFINITY ? '∞' : distances[target]}.`, 'reconstruct previous[]', target, [...settled], pathIds, pathEdges);
+  capture('Dijkstra / path', distances[target] === Number.POSITIVE_INFINITY ? `No path reaches ${target} from ${start}; it is disconnected (distance ∞). The graph is unchanged.` : `The shortest route to ${target} has distance ${distances[target]}. The graph is unchanged.`, 'reconstruct previous[]', target, [...settled], pathIds, pathEdges);
   return { model, frames };
 }
