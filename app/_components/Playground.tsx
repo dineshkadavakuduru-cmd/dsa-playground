@@ -263,7 +263,7 @@ export function Playground({ kind }: PlaygroundProps) {
                 <span><span className="text-pulse">✓ visited</span> — already seen</span>
                 <span><span className="text-signal">◆ on path</span> — result path</span>
                 {kind === "graph" && <span><span className="text-mist">w=N</span> — edge weight</span>}
-                {(kind === "avl" || kind === "bst") && <span><span className="text-mist">bf N</span> — balance factor (AVL)</span>}
+                {kind === "avl" && <span><span className="text-mist">bf N</span> — balance factor</span>}
               </div>
             </div>
           </section>
