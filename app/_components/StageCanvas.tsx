@@ -1,9 +1,8 @@
 "use client";
 
-import "../_lib/react-polyfill";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Grid, Html, Line, OrbitControls } from "@react-three/drei";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { CameraPreset, SceneEdge, SceneNode, StepFrame, StructureKind, Vec3 } from "../_lib/structures";
 
@@ -23,23 +22,83 @@ const EDGE_ACTIVE = "#e4f222";
 const EDGE_PATH = "#02b8cc";
 
 export function StageCanvas({ frame, kind }: StageCanvasProps) {
+  const [webglSupported] = useState(detectWebGL);
+  const [ready, setReady] = useState(false);
+  const [contextLost, setContextLost] = useState(false);
+
+  if (!webglSupported || contextLost) {
+    return <StageFallback lost={contextLost} />;
+  }
+
   return (
-    <Canvas className="h-full w-full" frameloop="always" camera={{ position: [0, 2.2, 10.5], fov: 40 }}>
-      <color attach="background" args={["#08090a"]} />
-      <ambientLight intensity={0.72} />
-      <directionalLight position={[5, 8, 6]} intensity={1.35} color="#ffffff" />
-      <pointLight position={[-4, 3, 4]} intensity={0.65} color="#e4f222" distance={12} />
-      <Grid
-        infiniteGrid
-        fadeDistance={24}
-        sectionColor="#23252a"
-        cellColor="#161718"
-        sectionThickness={1.2}
-        cellThickness={0.55}
-      />
-      <StageRig frame={frame} kind={kind} />
-      <OrbitControls makeDefault enablePan={false} minDistance={6} maxDistance={16} dampingFactor={0.08} />
-    </Canvas>
+    <div className="relative h-full w-full">
+      <Canvas
+        className="h-full w-full"
+        frameloop="always"
+        dpr={[1, 2]}
+        gl={{ antialias: true, powerPreference: "high-performance" }}
+        camera={{ position: [0, 2.2, 10.5], fov: 40 }}
+        onCreated={({ gl }) => {
+          setReady(true);
+          gl.domElement.addEventListener(
+            "webglcontextlost",
+            (event) => {
+              event.preventDefault();
+              setContextLost(true);
+            },
+            false,
+          );
+        }}
+      >
+        <color attach="background" args={["#08090a"]} />
+        <ambientLight intensity={0.72} />
+        <directionalLight position={[5, 8, 6]} intensity={1.35} color="#ffffff" />
+        <pointLight position={[-4, 3, 4]} intensity={0.65} color="#e4f222" distance={12} />
+        <Grid
+          infiniteGrid
+          fadeDistance={24}
+          sectionColor="#23252a"
+          cellColor="#161718"
+          sectionThickness={1.2}
+          cellThickness={0.55}
+        />
+        <StageRig frame={frame} kind={kind} />
+        <OrbitControls makeDefault enablePan={false} minDistance={6} maxDistance={16} dampingFactor={0.08} />
+      </Canvas>
+      {!ready && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-void">
+          <span className="stage-loading" role="status">CALIBRATING STAGE</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Probe once, before mounting the Canvas: creating a WebGL context and then
+// deliberately losing it keeps the check cheap and avoids a thrown error from
+// <Canvas> on machines with WebGL blocked. StageCanvas is client-only
+// (imported via next/dynamic with ssr:false), so `window`/`document` exist.
+function detectWebGL(): boolean {
+  if (typeof window === "undefined" || typeof document === "undefined") return false;
+  try {
+    const canvas = document.createElement("canvas");
+    const context =
+      canvas.getContext("webgl2") ??
+      canvas.getContext("webgl") ??
+      canvas.getContext("experimental-webgl");
+    if (!context) return false;
+    (context as WebGLRenderingContext).getExtension("WEBGL_lose_context")?.loseContext();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function StageFallback({ lost }: { lost: boolean }) {
+  return (
+    <div className="stage-loading" role="status">
+      {lost ? "WEBGL CONTEXT LOST / STAGE OFFLINE" : "WEBGL UNAVAILABLE / STAGE OFFLINE"}
+    </div>
   );
 }
 
@@ -59,6 +118,22 @@ function StageRig({ frame, kind }: { frame: StepFrame; kind: StructureKind }) {
     () => Object.fromEntries(frame.nodes.map((node) => [node.id, node.position])),
     [frame.nodes],
   );
+
+  // R3F disposes JSX-declared geometries/materials when their objects leave the
+  // scene graph, but we dispose explicitly on unmount as well so a stage change
+  // (which unmounts this rig) can never leak GPU buffers on the shared renderer.
+  useEffect(() => {
+    const node = group.current;
+    return () => {
+      node?.traverse((object) => {
+        const mesh = object as THREE.Mesh;
+        mesh.geometry?.dispose?.();
+        const material = mesh.material;
+        if (Array.isArray(material)) material.forEach((item) => item.dispose?.());
+        else material?.dispose?.();
+      });
+    };
+  }, []);
 
   return (
     <group ref={group}>

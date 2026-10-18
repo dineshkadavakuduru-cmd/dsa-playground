@@ -1,6 +1,5 @@
 "use client";
 
-import "../_lib/react-polyfill";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -76,7 +75,11 @@ function defaultInputFor(kind: StructureKind, operation: string): string {
 
 export function Playground({ kind }: PlaygroundProps) {
   const initialModel = useMemo(() => createInitialModel(kind), [kind]);
-  const [model, setModel] = useState<StructureModel>(() => initialModel);
+  // Single source of truth for the latest committed model. Rapid RUN clicks
+  // fire before React re-renders, so reading state from the click closure
+  // would apply every operation to the same stale snapshot and silently drop
+  // earlier ones. The ref is updated synchronously; `frames` drive rendering.
+  const modelRef = useRef<StructureModel>(initialModel);
   const [frames, setFrames] = useState<StepFrame[]>(() => initialFrames(kind, initialModel));
   const [stepIndex, setStepIndex] = useState(0);
   const [operation, setOperation] = useState(() => OPERATIONS[kind][0].value);
@@ -94,7 +97,7 @@ export function Playground({ kind }: PlaygroundProps) {
       const scenario = readScenario();
       const scenarioModel = scenario?.kind === kind ? scenario.model : next;
       const scenarioOperation = scenario?.kind === kind ? scenario.operation : OPERATIONS[kind][0].value;
-      setModel(scenarioModel);
+      modelRef.current = scenarioModel;
       setFrames(initialFrames(kind, scenarioModel));
       setStepIndex(0);
       setOperation(scenarioOperation);
@@ -154,8 +157,8 @@ export function Playground({ kind }: PlaygroundProps) {
   const inputRequired = !NO_INPUT_OPERATIONS.has(`${kind}:${operation}`);
 
   const runOperation = () => {
-    const result = executeOperation(kind, model, operation, input, mode === "random");
-    setModel(result.model);
+    const result = executeOperation(kind, modelRef.current, operation, input, mode === "random");
+    modelRef.current = result.model;
     setFrames(result.frames);
     setStepIndex(0);
     setPlaying(false);
@@ -167,7 +170,7 @@ export function Playground({ kind }: PlaygroundProps) {
 
   const randomizeStructure = () => {
     const next = randomizeModel(kind);
-    setModel(next);
+    modelRef.current = next;
     setFrames(initialFrames(kind, next));
     setStepIndex(0);
     setPlaying(false);
@@ -175,7 +178,7 @@ export function Playground({ kind }: PlaygroundProps) {
   };
 
   const shareScenario = async () => {
-    const scenario: Scenario = { kind, model, operation, input, history };
+    const scenario: Scenario = { kind, model: modelRef.current, operation, input, history };
     const encoded = typeof window === "undefined" ? "" : encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(scenario)))));
     const url = `${window.location.origin}${window.location.pathname}?scenario=${encoded}`;
     try {
@@ -201,7 +204,7 @@ export function Playground({ kind }: PlaygroundProps) {
   return (
     <main className="min-h-[100dvh] bg-void font-sans text-mist">
       <div className="border-b border-graphite bg-carbon/70">
-        <div className="mx-auto flex max-w-lab items-center justify-between px-5 py-4 md:px-8">
+        <div className="mx-auto flex max-w-lab flex-wrap items-center justify-between gap-x-4 gap-y-3 px-5 py-4 md:px-8">
           <Link href="/" className="group flex items-center gap-3">
             <span className="flex h-7 w-7 items-center justify-center border border-accent bg-accent text-void font-mono text-[11px] font-medium transition-transform group-hover:rotate-90">D</span>
             <span>
@@ -209,9 +212,9 @@ export function Playground({ kind }: PlaygroundProps) {
               <span className="block font-mono text-[10px] tracking-[0.16em] text-ash">STATE VISUALIZATION LAB</span>
             </span>
           </Link>
-          <nav className="hidden items-center gap-1 md:flex" aria-label="Structures">
+          <nav className="flex w-full items-center gap-1 overflow-x-auto md:w-auto" aria-label="Structures">
             {(Object.keys(STRUCTURES) as StructureKind[]).map((item) => (
-              <Link key={item} href={`/${item}`} data-testid={`nav-${item}`} className={`rounded-lab px-3 py-2 text-[12px] transition-all ${item === kind ? "bg-accent font-medium text-void" : "text-fog hover:bg-obsidian hover:text-bone"}`}>
+              <Link key={item} href={`/${item}`} data-testid={`nav-${item}`} className={`shrink-0 whitespace-nowrap rounded-lab px-3 py-2 text-[12px] transition-all ${item === kind ? "bg-accent font-medium text-void" : "text-fog hover:bg-obsidian hover:text-bone"}`}>
                 {STRUCTURES[item].short}
               </Link>
             ))}
@@ -341,7 +344,7 @@ export function Playground({ kind }: PlaygroundProps) {
             <section className="playground-panel rounded-panel border border-graphite bg-carbon p-5 shadow-hairline">
               <div className="flex items-center justify-between">
                 <h2 className="text-[13px] font-medium tracking-[-0.01em] text-bone">Session history</h2>
-                <span className="font-mono text-[10px] text-ash">{history.length}</span>
+                <span data-testid="history-count" className="font-mono text-[10px] text-ash">{history.length}</span>
               </div>
               <div className="mt-4 flex max-h-40 flex-col divide-y divide-graphite overflow-y-auto">
                 {history.length === 0 ? (
@@ -378,7 +381,7 @@ function ArrayStrip({ values, activeIndices }: { values: string[]; activeIndices
       </div>
       <div className="flex flex-wrap gap-2">
         {values.map((value, index) => (
-          <div key={`${index}-${value}`} className={`flex min-w-[54px] flex-col items-center rounded-[4px] border px-2 py-2 transition-all ${activeIndices.includes(index) ? "border-accent bg-accent/10" : "border-graphite bg-void"}`}>
+          <div key={`${index}-${value}`} data-testid="array-cell" className={`flex min-w-[54px] flex-col items-center rounded-[4px] border px-2 py-2 transition-all ${activeIndices.includes(index) ? "border-accent bg-accent/10" : "border-graphite bg-void"}`}>
             <span className="font-mono text-[10px] text-ash">[{index}]</span>
             <span className={`font-mono text-[13px] ${activeIndices.includes(index) ? "text-accent" : "text-bone"}`}>{value}</span>
           </div>
