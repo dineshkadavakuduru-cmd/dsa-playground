@@ -655,7 +655,7 @@ function queueNodes(values: number[], activeIndex?: number): SceneNode[] {
     label: String(value),
     position: { x: (index - center) * 2.25, y: 0, z: 0 },
     shape: 'box' as const,
-    active: index === activeIndex || (activeIndex === undefined && index === 0),
+    active: activeIndex !== undefined ? index === activeIndex : index === 0,
   }));
 }
 
@@ -834,7 +834,7 @@ function executeQueue(model: QueueModel, operation: string, rawInput?: string, r
     return {
       model: { values },
       frames: [
-        makeFrame('queue-enqueue-start', 'Enqueue / approach', `${numeric} enters from the rear of the queue.`, 'rear <- rear + 1', 'O(1)', queueNodes(model.values)),
+        makeFrame('queue-enqueue-start', 'Enqueue / approach', `Prepare to add ${numeric} at the rear of the queue.`, 'rear <- rear + 1', 'O(1)', queueNodes(model.values, -1)),
         makeFrame('queue-enqueue-end', 'Enqueue / settle', `${numeric} is now the rear value (FIFO); the front remains ready for service.`, 'queue[rear] <- key', 'O(1)', queueNodes(values, values.length - 1)),
       ],
     };
@@ -1190,6 +1190,7 @@ function deleteAvlModel(model: TreeModel, value: number): OperationResult {
   const frames: StepFrame[] = [];
   let sequence = 0;
   let liveRoot = cloneTree(model.root);
+  const rotations: Array<{ kind: string; at: number; caseName: string; camera: CameraPreset }> = [];
   const snapshot = (title: string, narration: string, pseudocode: string, activeId?: number, camera?: CameraPreset) => {
     sequence += 1;
     frames.push(makeFrame(`avl-delete-${sequence}`, title, narration, pseudocode, 'O(log n)', ...treeScene(liveRoot, { avl: true, activeId }), { camera }));
@@ -1204,46 +1205,73 @@ function deleteAvlModel(model: TreeModel, value: number): OperationResult {
     snapshot('AVL / absent', `${value} is not present; the AVL is unchanged.`, 'return root (no change)');
     return { model, frames };
   }
-  liveRoot = deleteAvlNode(liveRoot, value);
+  const childCount = (current.left ? 1 : 0) + (current.right ? 1 : 0);
+  const caseName = childCount === 0 ? 'leaf' : childCount === 1 ? 'one child' : 'two children';
+  snapshot('AVL / case', `Node ${value} has ${caseName} — ${caseName === 'leaf' ? 'remove the link from its parent' : caseName === 'one child' ? 'splice the child into place' : 'copy in-order successor, then delete successor'}.`, 'classify case', current.id);
+  liveRoot = deleteAvlNodeWithFrames(liveRoot, value, snapshot, rotations);
+  rotations.forEach((rotation) => {
+    snapshot(
+      `AVL / ${rotation.kind}`,
+      `A ${rotation.kind} at ${rotation.at} restores balance (${rotation.caseName} case).`,
+      rotation.caseName === 'LL' || rotation.caseName === 'LR' ? 'rotateRight(node)' : 'rotateLeft(node)',
+      undefined,
+      rotation.camera,
+    );
+  });
   const audit = avlAudit(liveRoot);
   snapshot(
-    'AVL / rebalance',
+    'AVL / settled',
     audit.ok
-      ? `${value} is removed and the affected path is rebalanced; every balance factor satisfies |bf| ≤ 1 (worst ${audit.worst}).`
+      ? `Deletion complete: ${value} removed and the affected path is rebalanced; every balance factor satisfies |bf| ≤ 1 (worst ${audit.worst}).`
       : `${value} is removed but imbalance remains at [${audit.violations.join(', ')}]; the invariant is violated.`,
-    'delete; rebalance affected path',
+    'verify |balance| <= 1 everywhere',
     liveRoot?.id,
   );
   return { model: { root: liveRoot, nextId: model.nextId }, frames };
 }
 
-function deleteAvlNode(node: TreeNode | undefined, value: number): TreeNode | undefined {
+function deleteAvlNodeWithFrames(node: TreeNode | undefined, value: number, snapshot: (title: string, narration: string, pseudocode: string, activeId?: number, camera?: CameraPreset) => void, rotations: Array<{ kind: string; at: number; caseName: string; camera: CameraPreset }>): TreeNode | undefined {
   if (!node) return undefined;
   if (value < node.value) {
-    node.left = deleteAvlNode(node.left, value);
+    node.left = deleteAvlNodeWithFrames(node.left, value, snapshot, rotations);
   } else if (value > node.value) {
-    node.right = deleteAvlNode(node.right, value);
+    node.right = deleteAvlNodeWithFrames(node.right, value, snapshot, rotations);
   } else {
-    if (!node.left) return node.right;
-    if (!node.right) return node.left;
+    if (!node.left) {
+      snapshot('AVL / remove leaf', `Node ${value} is a leaf; removing its link from parent.`, 'return right (which is null)', node.id);
+      return node.right;
+    }
+    if (!node.right) {
+      snapshot('AVL / splice', `Node ${value} has one child; splicing the child into place.`, 'return left', node.id);
+      return node.left;
+    }
     const successor = minValueNode(node.right);
+    snapshot('AVL / successor', `Node ${value} has two children; copying in-order successor ${successor.value}.`, 'node.value <- successor.value', node.id);
     node.value = successor.value;
-    node.right = deleteAvlNode(node.right, successor.value);
+    node.right = deleteAvlNodeWithFrames(node.right, successor.value, snapshot, rotations);
   }
   node.height = nodeHeight(node);
-  return rebalanceAvl(node);
+  return rebalanceAvlWithFrames(node, snapshot, rotations);
 }
 
-function rebalanceAvl(node: TreeNode): TreeNode {
+function rebalanceAvlWithFrames(node: TreeNode, snapshot: (title: string, narration: string, pseudocode: string, activeId?: number, camera?: CameraPreset) => void, rotations: Array<{ kind: string; at: number; caseName: string; camera: CameraPreset }>): TreeNode {
   node.height = nodeHeight(node);
   const balance = getBalance(node);
   if (balance > 1) {
-    if (getBalance(node.left) >= 0) return rotateRight(node);
+    if (getBalance(node.left) >= 0) {
+      rotations.push({ kind: 'rotate right', at: node.value, caseName: 'LL', camera: 'rotate-right' });
+      return rotateRight(node);
+    }
+    rotations.push({ kind: 'left-right double rotation', at: node.value, caseName: 'LR', camera: 'rotate-right' });
     node.left = rotateLeft(node.left as TreeNode);
     return rotateRight(node);
   }
   if (balance < -1) {
-    if (getBalance(node.right) <= 0) return rotateLeft(node);
+    if (getBalance(node.right) <= 0) {
+      rotations.push({ kind: 'rotate left', at: node.value, caseName: 'RR', camera: 'rotate-left' });
+      return rotateLeft(node);
+    }
+    rotations.push({ kind: 'right-left double rotation', at: node.value, caseName: 'RL', camera: 'rotate-left' });
     node.right = rotateRight(node.right as TreeNode);
     return rotateLeft(node);
   }

@@ -294,7 +294,14 @@ export function Playground({ kind }: PlaygroundProps) {
                     ["manual", "MANUAL"],
                     ["random", "RANDOM"],
                   ] as const).map(([value, label]) => (
-                    <button key={value} type="button" onClick={() => setMode(value)} data-testid={`mode-${value}`} className={`flex-1 rounded-[4px] px-2 py-1.5 font-mono text-[10px] transition-all ${mode === value ? "bg-accent text-void" : "text-fog hover:text-bone"}`}>
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setMode(value)}
+                      data-testid={`mode-${value}`}
+                      aria-pressed={mode === value}
+                      className={`flex-1 rounded-[4px] px-2 py-1.5 font-mono text-[10px] transition-all ${mode === value ? "bg-accent text-void" : "text-fog hover:text-bone"}`}
+                    >
                       {label}
                     </button>
                   ))}
@@ -329,11 +336,21 @@ export function Playground({ kind }: PlaygroundProps) {
                 <code className="mt-3 block font-mono text-[11px] leading-relaxed text-fog">{frame.pseudocode}</code>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
-                {frames.slice(0, stepIndex + 1).slice(-4).map((item, index) => (
-                  <button key={item.id} type="button" onClick={() => { setPlaying(false); setStepIndex(frames.indexOf(item)); }} data-testid={`step-${frames.indexOf(item) + 1}`} className={`rounded-[4px] border px-2 py-1.5 font-mono text-[10px] transition-all ${index === stepIndex ? "border-accent bg-accent/10 text-accent" : "border-graphite text-fog hover:border-mist hover:text-bone"}`}>
-                    {String(frames.indexOf(item) + 1).padStart(2, "0")}
-                  </button>
-                ))}
+                {frames.slice(0, stepIndex + 1).slice(-4).map((item, index) => {
+                  const frameNumber = frames.indexOf(item) + 1;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => { setPlaying(false); setStepIndex(frames.indexOf(item)); }}
+                      data-testid={`step-${frameNumber}`}
+                      aria-label={`Go to frame ${frameNumber}`}
+                      className={`rounded-[4px] border px-2 py-1.5 font-mono text-[10px] transition-all ${index === stepIndex ? "border-accent bg-accent/10 text-accent" : "border-graphite text-fog hover:border-mist hover:text-bone"}`}
+                    >
+                      {String(frameNumber).padStart(2, "0")}
+                    </button>
+                  );
+                })}
               </div>
               <div className="complexity-readout mt-5 flex items-center justify-between border-t border-graphite pt-4">
                 <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ash">Complexity</span>
