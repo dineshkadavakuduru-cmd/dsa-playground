@@ -285,8 +285,16 @@ export function Playground({ kind }: PlaygroundProps) {
                     </select>
                 </label>
                 <label className="col-span-2" htmlFor="operation-input">
-                  <span className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-ash">{operationDefinition.inputLabel}{inputRequired ? "" : " (not needed)"}</span>
-                  <input id="operation-input" value={input} onChange={(event) => setInput(event.target.value)} disabled={mode === "random" || !inputRequired} placeholder={operationDefinition.placeholder} data-testid="operation-input" aria-describedby="operation-description" className="h-9 w-full rounded-lab border border-graphite bg-obsidian px-3 font-mono text-[12px] text-bone outline-none transition-colors placeholder:text-ash focus:border-mist disabled:cursor-not-allowed disabled:text-ash" />
+                  <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-2">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ash">{operationDefinition.inputLabel}{inputRequired ? "" : " (not needed)"}</span>
+                    {kind === "graph" && operation === "add-vertex" && (
+                      <span data-testid="vertex-label-guidance" className="font-mono text-[10px] text-accent">Single integer or blank for auto</span>
+                    )}
+                  </div>
+                  <input id="operation-input" value={input} onChange={(event) => setInput(event.target.value)} disabled={mode === "random" || !inputRequired} placeholder={operationDefinition.placeholder} data-testid="operation-input" aria-describedby={`operation-description${kind === "graph" && operation === "add-vertex" ? " vertex-hint" : ""}`} className="h-9 w-full rounded-lab border border-graphite bg-obsidian px-3 font-mono text-[12px] text-bone outline-none transition-colors placeholder:text-ash focus:border-mist disabled:cursor-not-allowed disabled:text-ash" />
+                  {kind === "graph" && operation === "add-vertex" && (
+                    <span id="vertex-hint" data-testid="vertex-label-hint" className="mt-1 block font-mono text-[10px] leading-relaxed text-fog">Labels must be a single integer or left blank for automatic assignment.</span>
+                  )}
                 </label>
                 <p id="operation-description" className="col-span-2 font-mono text-[10px] leading-relaxed text-ash">{operationDefinition.description}</p>
                 <div className="col-span-2 flex rounded-lab border border-graphite bg-obsidian p-1">

@@ -21,6 +21,7 @@ const config = [
       "*.js",
       "next-env.d.ts",
       ".kilo/**",
+      "dsa-playground/**",
     ],
   },
   ...compat.extends("next/core-web-vitals", "next/typescript"),

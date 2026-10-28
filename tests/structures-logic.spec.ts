@@ -259,6 +259,53 @@ test.describe("graph regression", () => {
     expect(executeOperation("graph", model, "remove-vertex", "42").model).toEqual(model);
   });
 
+  test("graph vertex addition with valid integers, letters rejected with held state, and existing operations continue", () => {
+    const initial = createInitialModel("graph") as GraphModel;
+
+    // Submitting a letter or invalid input produces an error narration and leaves graph state unchanged
+    const letterAttempt = executeOperation("graph", initial, "add-vertex", "a");
+    expect(letterAttempt.model).toEqual(initial);
+    expect(letterAttempt.frames[0].title).toBe("Graph / held");
+    expect(letterAttempt.frames[0].narration).toContain("A vertex label must be a single integer (or empty for auto).");
+    expect(letterAttempt.frames[0].narration).toContain("The structure is unchanged.");
+
+    const stringAttempt = executeOperation("graph", initial, "add-vertex", "node-x");
+    expect(stringAttempt.model).toEqual(initial);
+
+    // Adding a valid explicit integer vertex succeeds
+    const with7 = executeOperation("graph", initial, "add-vertex", "7");
+    const modelWith7 = with7.model as GraphModel;
+    expect(modelWith7.vertices).toContain(7);
+    expect(with7.frames[with7.frames.length - 1].narration).toContain("7 joins the network");
+
+    // Existing operations work with the new vertex:
+    // 1. Connect the new vertex with an edge
+    const withEdge = executeOperation("graph", modelWith7, "add-edge", "5 7 3");
+    const modelWithEdge = withEdge.model as GraphModel;
+    expect(modelWithEdge.edges).toContainEqual({ from: 5, to: 7, weight: 3 });
+
+    // 2. BFS reaches all 7 vertices including vertex 7
+    const bfs = executeOperation("graph", modelWithEdge, "bfs", "0");
+    const lastBfs = bfs.frames[bfs.frames.length - 1];
+    expect(lastBfs.nodes.filter((node) => node.visited).length).toBe(7);
+
+    // 3. DFS reaches vertex 7
+    const dfs = executeOperation("graph", modelWithEdge, "dfs", "0");
+    const lastDfs = dfs.frames[dfs.frames.length - 1];
+    expect(lastDfs.nodes.filter((node) => node.visited).length).toBe(7);
+
+    // 4. Dijkstra finds path from 0 to 7
+    const dijkstra = executeOperation("graph", modelWithEdge, "dijkstra", "0 7");
+    const lastDijkstra = dijkstra.frames[dijkstra.frames.length - 1];
+    expect(lastDijkstra.nodes.find((n) => n.id === "vertex-7")?.path).toBe(true);
+
+    // 5. Remove vertex 7 and incident edges
+    const removed = executeOperation("graph", modelWithEdge, "remove-vertex", "7");
+    const modelRemoved = removed.model as GraphModel;
+    expect(modelRemoved.vertices).not.toContain(7);
+    expect(modelRemoved.edges.some((e) => e.from === 7 || e.to === 7)).toBe(false);
+  });
+
   test("disconnected graphs are reported", () => {
     const model = createInitialModel("graph") as GraphModel;
     let isolated = executeOperation("graph", model, "remove-edge", "1 5").model as GraphModel;

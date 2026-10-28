@@ -308,7 +308,7 @@ export const OPERATIONS: Record<StructureKind, OperationDefinition[]> = {
     {
       value: 'add-vertex',
       label: 'Add vertex',
-      description: 'Create a new vertex in the network.',
+      description: 'Create a new vertex in the network. Labels must be a single integer or left blank for automatic assignment.',
       inputLabel: 'Label',
       placeholder: 'auto',
     },

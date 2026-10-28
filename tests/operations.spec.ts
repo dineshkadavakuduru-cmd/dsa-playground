@@ -59,12 +59,31 @@ test.describe("operation UI sync", () => {
     await expect(page.locator(".current-narration")).toContainText("not in the heap");
   });
 
-  test("graph add/remove vertex sync narration", async ({ page }) => {
+  test("graph add/remove vertex sync narration and vertex-label guidance", async ({ page }) => {
     await page.goto("/graph");
+    // Verify guidance beside the field is displayed before submission
+    await expect(page.getByTestId("vertex-label-guidance")).toBeVisible();
+    await expect(page.getByTestId("vertex-label-guidance")).toHaveText("Single integer or blank for auto");
+    await expect(page.getByTestId("vertex-label-hint")).toBeVisible();
+    await expect(page.getByTestId("vertex-label-hint")).toContainText("Labels must be a single integer or left blank for automatic assignment.");
+
+    // Submitting a letter produces an error and keeps state unchanged
+    await runOperation(page, "add-vertex", "abc");
+    await expect(page.locator(".current-narration")).toContainText("A vertex label must be a single integer");
+    await expect(page.locator(".current-narration")).toContainText("unchanged");
+
+    // Adding with blank / auto-assignment
     await runOperation(page, "add-vertex", "");
     await expect(page.locator(".current-narration")).toContainText("allocated");
     await stepToLastFrame(page);
     await expect(page.locator(".current-narration")).toContainText("joins the network");
+
+    // Adding with a valid explicit integer vertex
+    await runOperation(page, "add-vertex", "7");
+    await expect(page.locator(".current-narration")).toContainText("Vertex 7 is allocated");
+    await stepToLastFrame(page);
+    await expect(page.locator(".current-narration")).toContainText("7 joins the network");
+
     await runOperation(page, "remove-vertex", "42");
     await expect(page.locator(".current-narration")).toContainText("unchanged");
   });
